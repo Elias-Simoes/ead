@@ -1,0 +1,376 @@
+### Plataforma EAD - API Tests
+### Use this file with REST Client extension in VS Code
+### or copy the requests to Postman/Insomnia
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### Variables (will be set after requests)
+# @accessToken = your-access-token-here
+# @refreshToken = your-refresh-token-here
+# @resetToken = your-reset-token-here
+
+###############################################
+### 1. Health Check
+###############################################
+
+### Check if server is running
+GET {{baseUrl}}/health
+
+###############################################
+### 2. Register New Student
+###############################################
+
+### Register a new student account
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com",
+  "name": "João Silva",
+  "password": "SecurePass123!",
+  "gdprConsent": true
+}
+
+### Register another student for testing
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "maria@example.com",
+  "name": "Maria Santos",
+  "password": "SecurePass123!",
+  "gdprConsent": true
+}
+
+### Try to register with existing email (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com",
+  "name": "Duplicate User",
+  "password": "SecurePass123!",
+  "gdprConsent": true
+}
+
+### Try to register with weak password (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "weak@example.com",
+  "name": "Weak Password User",
+  "password": "123456",
+  "gdprConsent": true
+}
+
+### Try to register without GDPR consent (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "nogdpr@example.com",
+  "name": "No GDPR User",
+  "password": "SecurePass123!",
+  "gdprConsent": false
+}
+
+###############################################
+### 3. Login
+###############################################
+
+### Login with student account
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com",
+  "password": "SecurePass123!"
+}
+
+### Login with default admin account
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@plataforma-ead.com",
+  "password": "Admin@123"
+}
+
+### Try to login with wrong password (should fail)
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com",
+  "password": "WrongPassword123!"
+}
+
+### Try to login with non-existent email (should fail)
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "notfound@example.com",
+  "password": "SecurePass123!"
+}
+
+###############################################
+### 4. Refresh Token
+###############################################
+
+### Refresh access token
+### Replace YOUR_REFRESH_TOKEN with the refreshToken from login response
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN"
+}
+
+### Try to refresh with invalid token (should fail)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "invalid-token"
+}
+
+###############################################
+### 5. Logout
+###############################################
+
+### Logout (revoke refresh token)
+### Replace YOUR_REFRESH_TOKEN with the refreshToken from login response
+POST {{baseUrl}}/api/auth/logout
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN"
+}
+
+###############################################
+### 6. Forgot Password
+###############################################
+
+### Request password reset
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com"
+}
+
+### Request password reset for non-existent email (still returns success)
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: {{contentType}}
+
+{
+  "email": "notfound@example.com"
+}
+
+###############################################
+### 7. Reset Password
+###############################################
+
+### Reset password with token
+### Replace YOUR_RESET_TOKEN with the token from forgot-password
+### (In production, this would come from email link)
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "YOUR_RESET_TOKEN",
+  "password": "NewSecurePass123!"
+}
+
+### Try to reset with invalid token (should fail)
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "invalid-token",
+  "password": "NewSecurePass123!"
+}
+
+### Try to reset with weak password (should fail)
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "YOUR_RESET_TOKEN",
+  "password": "weak"
+}
+
+###############################################
+### 8. Test Rate Limiting
+###############################################
+
+### Try to login multiple times to trigger rate limit
+### Run this 6 times quickly to see rate limiting in action
+
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "student@example.com",
+  "password": "WrongPassword123!"
+}
+
+###############################################
+### 9. Protected Route Example
+###############################################
+
+### Access a protected route (you'll need to implement this)
+### Replace YOUR_ACCESS_TOKEN with the accessToken from login response
+GET {{baseUrl}}/api/protected
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+### Try to access without token (should fail with 401)
+GET {{baseUrl}}/api/protected
+
+### Try to access with invalid token (should fail with 401)
+GET {{baseUrl}}/api/protected
+Authorization: Bearer invalid-token
+
+###############################################
+### 10. COURSES MODULE - Instructor Tests
+###############################################
+
+### Create a new course (as instructor)
+### Replace YOUR_INSTRUCTOR_TOKEN with instructor's accessToken
+POST {{baseUrl}}/api/courses
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Curso Completo de Node.js",
+  "description": "Aprenda Node.js do zero ao avançado",
+  "category": "Programação",
+  "workload": 40
+}
+
+### Get instructor's courses
+GET {{baseUrl}}/api/courses/instructor/my-courses?page=1&limit=10
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Get course details
+### Replace COURSE_ID with the course id from creation
+GET {{baseUrl}}/api/courses/COURSE_ID
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Update course
+PATCH {{baseUrl}}/api/courses/COURSE_ID
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Curso Completo de Node.js - Atualizado",
+  "description": "Aprenda Node.js do zero ao avançado com projetos práticos"
+}
+
+### Add module to course
+POST {{baseUrl}}/api/courses/COURSE_ID/modules
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Módulo 1 - Introdução ao Node.js",
+  "description": "Conceitos básicos e configuração do ambiente"
+}
+
+### Update module
+### Replace MODULE_ID with the module id
+PATCH {{baseUrl}}/api/courses/modules/MODULE_ID
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Módulo 1 - Introdução ao Node.js (Atualizado)"
+}
+
+### Add lesson to module
+POST {{baseUrl}}/api/courses/modules/MODULE_ID/lessons
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Aula 1 - O que é Node.js",
+  "description": "Entendendo o Node.js e seu ecossistema",
+  "type": "video",
+  "content": "https://example.com/videos/aula1.mp4",
+  "duration": 15
+}
+
+### Update lesson
+### Replace LESSON_ID with the lesson id
+PATCH {{baseUrl}}/api/courses/lessons/LESSON_ID
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+{
+  "title": "Aula 1 - O que é Node.js e por que usar",
+  "duration": 20
+}
+
+### Submit course for approval
+POST {{baseUrl}}/api/courses/COURSE_ID/submit
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Try to delete published course (should fail)
+DELETE {{baseUrl}}/api/courses/COURSE_ID
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Delete lesson
+DELETE {{baseUrl}}/api/courses/lessons/LESSON_ID
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Delete module
+DELETE {{baseUrl}}/api/courses/modules/MODULE_ID
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+### Delete draft course
+DELETE {{baseUrl}}/api/courses/COURSE_ID
+Authorization: Bearer YOUR_INSTRUCTOR_TOKEN
+
+###############################################
+### 11. COURSES MODULE - Admin Tests
+###############################################
+
+### Get pending courses (admin only)
+GET {{baseUrl}}/api/courses/admin/pending?page=1&limit=10
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+### Approve course
+PATCH {{baseUrl}}/api/courses/admin/COURSE_ID/approve
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+### Reject course
+PATCH {{baseUrl}}/api/courses/admin/COURSE_ID/reject
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+  "reason": "O conteúdo precisa ser mais detalhado e incluir mais exemplos práticos."
+}
+
+###############################################
+### 12. COURSES MODULE - Public/Student Tests
+###############################################
+
+### List all published courses
+GET {{baseUrl}}/api/courses?page=1&limit=10
+Authorization: Bearer YOUR_STUDENT_TOKEN
+
+### List courses by category
+GET {{baseUrl}}/api/courses?category=Programação&page=1&limit=10
+Authorization: Bearer YOUR_STUDENT_TOKEN
+
+### Search courses
+GET {{baseUrl}}/api/courses?search=Node.js&page=1&limit=10
+Authorization: Bearer YOUR_STUDENT_TOKEN
+
+### Get course details (student can only see published)
+GET {{baseUrl}}/api/courses/COURSE_ID
+Authorization: Bearer YOUR_STUDENT_TOKEN
