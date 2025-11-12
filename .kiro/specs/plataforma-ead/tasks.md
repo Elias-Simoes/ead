@@ -239,30 +239,43 @@
   - Testar listagem de cursos publicados
   - _Requisitos: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 5. Implementar módulo de assinaturas e pagamentos
+- [x] 5. Implementar módulo de assinaturas e pagamentos
+
+
+
+
+
   - _Requisitos: 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 5.1 Criar schemas de assinaturas e pagamentos
+
+- [x] 5.1 Criar schemas de assinaturas e pagamentos
+
   - Implementar migration para tabela plans (id, name, price, currency, interval, is_active)
   - Implementar migration para tabela subscriptions (id, student_id, plan_id, status, current_period_start, current_period_end, cancelled_at, gateway_subscription_id, created_at)
   - Implementar migration para tabela payments (id, subscription_id, amount, currency, status, gateway_payment_id, paid_at, created_at)
   - Adicionar índices apropriados
   - _Requisitos: 5.1, 6.1, 6.4_
 
-- [ ] 5.2 Integrar com gateway de pagamento
+
+- [x] 5.2 Integrar com gateway de pagamento
+
   - Configurar SDK do gateway (Stripe/Mercado Pago)
   - Implementar PaymentGatewayService com métodos createCheckoutSession(), createSubscription(), cancelSubscription()
   - Configurar webhooks no gateway apontando para /api/webhooks/payment
   - _Requisitos: 5.1, 5.4_
 
-- [ ] 5.3 Criar endpoints de assinatura
+
+- [x] 5.3 Criar endpoints de assinatura
+
   - Implementar POST /api/subscriptions (criar assinatura e redirecionar para checkout)
   - Implementar GET /api/subscriptions/current (visualizar assinatura atual)
   - Implementar POST /api/subscriptions/cancel (cancelar assinatura)
   - Implementar POST /api/subscriptions/reactivate (reativar assinatura cancelada)
   - _Requisitos: 5.1, 5.4, 5.5_
 
-- [ ] 5.4 Implementar processamento de webhooks
+- [x] 5.4 Implementar processamento de webhooks
+
+
   - Criar endpoint POST /api/webhooks/payment (validar assinatura do webhook)
   - Processar evento subscription.created (ativar assinatura)
   - Processar evento payment.succeeded (confirmar pagamento)
@@ -271,83 +284,116 @@
   - Atualizar subscription_status e subscription_expires_at do aluno
   - _Requisitos: 5.2, 5.3_
 
-- [ ] 5.5 Implementar job de verificação de assinaturas expiradas
+- [x] 5.5 Implementar job de verificação de assinaturas expiradas
+
+
   - Criar job agendado (cron) que roda diariamente
   - Buscar assinaturas com current_period_end < hoje
   - Atualizar status para 'suspended' se não renovada
   - _Requisitos: 5.3_
 
-- [ ] 5.6 Criar endpoints administrativos de assinaturas
+- [x] 5.6 Criar endpoints administrativos de assinaturas
+
+
   - Implementar GET /api/admin/subscriptions (listar todas com filtros)
   - Implementar GET /api/admin/subscriptions/stats (métricas: total ativas, MRR, churn)
   - Adicionar proteção: apenas admin
   - _Requisitos: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 5.7 Criar testes para módulo de assinaturas
+- [x] 5.7 Criar testes para módulo de assinaturas
+
+
   - Testar criação de assinatura
   - Testar processamento de webhooks (mock do gateway)
   - Testar suspensão automática de assinatura expirada
   - Testar cancelamento e reativação
   - _Requisitos: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 6. Implementar módulo de progresso e acesso a cursos
+- [x] 6. Implementar módulo de progresso e acesso a cursos
+
+
+
+
   - _Requisitos: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 6.1 Criar schema de progresso do aluno
+- [x] 6.1 Criar schema de progresso do aluno
+
+
   - Implementar migration para tabela student_progress (id, student_id, course_id, completed_lessons, progress_percentage, is_favorite, last_accessed_at, started_at, completed_at)
   - Adicionar constraint UNIQUE(student_id, course_id)
   - Adicionar índices em student_id e course_id
   - _Requisitos: 7.2, 7.3, 7.4_
 
-- [ ] 6.2 Implementar middleware de verificação de assinatura
+- [x] 6.2 Implementar middleware de verificação de assinatura
+
+
   - Criar middleware que verifica se aluno tem assinatura ativa
   - Retornar 403 se assinatura inativa/expirada
   - Aplicar em rotas de acesso a cursos
   - _Requisitos: 7.1_
 
-- [ ] 6.3 Criar endpoints de acesso a cursos
+- [x] 6.3 Criar endpoints de acesso a cursos
+
+
   - Implementar GET /api/courses/:id/content (retorna curso com módulos e aulas)
   - Implementar GET /api/lessons/:id/content (retorna conteúdo da aula)
   - Adicionar proteção: apenas alunos com assinatura ativa
   - Para vídeos, retornar signed URL com expiração
   - _Requisitos: 7.1_
 
-- [ ] 6.4 Implementar registro de progresso
+- [x] 6.4 Implementar registro de progresso
+
+
   - Criar endpoint POST /api/courses/:courseId/progress (marcar aula como concluída)
   - Calcular progress_percentage baseado em aulas concluídas
   - Atualizar last_accessed_at
   - Criar registro de progresso se não existir (started_at)
   - _Requisitos: 7.2, 7.3_
 
-- [ ] 6.5 Criar endpoints de gerenciamento de progresso
+- [x] 6.5 Criar endpoints de gerenciamento de progresso
+
+
   - Implementar GET /api/students/courses/progress (listar progresso de todos os cursos)
   - Implementar PATCH /api/courses/:id/favorite (favoritar/desfavoritar curso)
   - Implementar GET /api/students/courses/history (histórico: iniciados, em andamento, concluídos)
   - _Requisitos: 7.4, 11.1, 11.2_
 
-- [ ] 6.6 Implementar notificação de novos cursos
+- [x] 6.6 Implementar notificação de novos cursos
+
+
   - Criar job que detecta cursos recém-publicados
   - Enviar email para todos os alunos com assinatura ativa
   - Marcar curso como notificado para não reenviar
   - _Requisitos: 7.5_
 
-- [ ] 6.7 Criar testes para módulo de progresso
+- [x] 6.7 Criar testes para módulo de progresso
+
+
   - Testar acesso negado sem assinatura ativa
   - Testar registro de progresso
   - Testar cálculo de percentual de conclusão
   - Testar favoritar curso
   - _Requisitos: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 7. Implementar módulo de avaliações
+- [x] 7. Implementar módulo de avaliações
+
+
+
+
+
   - _Requisitos: 3.5, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 7.1 Criar schemas de avaliações
+- [x] 7.1 Criar schemas de avaliações
+
+
   - Implementar migration para tabela assessments (id, course_id, title, type, passing_score, created_at)
   - Implementar migration para tabela questions (id, assessment_id, text, type, options, correct_answer, points, order_index)
   - Implementar migration para tabela student_assessments (id, student_id, assessment_id, answers, score, status, submitted_at, graded_at, graded_by)
   - _Requisitos: 3.5, 9.1, 9.2_
 
-- [ ] 7.2 Criar endpoints de criação de avaliações (instrutor)
+- [x] 7.2 Criar endpoints de criação de avaliações (instrutor)
+
+
   - Implementar POST /api/courses/:id/assessments (criar avaliação)
   - Implementar POST /api/assessments/:id/questions (adicionar questão)
   - Implementar PATCH /api/questions/:id (editar questão)
@@ -355,7 +401,9 @@
   - Validar que avaliação tem pelo menos 1 questão
   - _Requisitos: 3.5_
 
-- [ ] 7.3 Criar endpoints de submissão de avaliações (aluno)
+- [x] 7.3 Criar endpoints de submissão de avaliações (aluno)
+
+
   - Implementar GET /api/assessments/:id (visualizar avaliação)
   - Implementar POST /api/assessments/:id/submit (submeter respostas)
   - Calcular nota automaticamente para múltipla escolha
@@ -363,20 +411,26 @@
   - Impedir resubmissão de avaliação já submetida
   - _Requisitos: 9.2_
 
-- [ ] 7.4 Criar endpoints de correção (instrutor)
+- [x] 7.4 Criar endpoints de correção (instrutor)
+
+
   - Implementar GET /api/instructor/assessments/pending (listar avaliações pendentes de correção)
   - Implementar GET /api/assessments/:id/submissions (ver submissões dos alunos)
   - Implementar PATCH /api/student-assessments/:id/grade (atribuir nota e feedback)
   - Atualizar status para 'graded' e registrar graded_by
   - _Requisitos: 9.3, 9.4_
 
-- [ ] 7.5 Implementar cálculo de nota final do curso
+- [x] 7.5 Implementar cálculo de nota final do curso
+
+
   - Criar método que calcula média ponderada de todas as avaliações
   - Considerar peso de cada avaliação baseado em pontos totais
   - Armazenar nota final no student_progress
   - _Requisitos: 9.5_
 
-- [ ] 7.6 Criar testes para módulo de avaliações
+- [x] 7.6 Criar testes para módulo de avaliações
+
+
   - Testar criação de avaliação por instrutor
   - Testar submissão de respostas por aluno
   - Testar cálculo automático de nota (múltipla escolha)

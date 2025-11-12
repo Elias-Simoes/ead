@@ -12,7 +12,13 @@ import authRoutes from './modules/auth/routes/auth.routes';
 import instructorRoutes from './modules/users/routes/instructor.routes';
 import studentRoutes from './modules/users/routes/student.routes';
 import courseRoutes from './modules/courses/routes/course.routes';
+import subscriptionRoutes from './modules/subscriptions/routes/subscription.routes';
+import adminSubscriptionRoutes from './modules/subscriptions/routes/admin-subscription.routes';
+import webhookRoutes from './modules/subscriptions/routes/webhook.routes';
+import progressRoutes from './modules/progress/routes/progress.routes';
+import assessmentRoutes from './modules/assessments/routes/assessment.routes';
 import { updateLastAccess } from './shared/middleware/lastAccess.middleware';
+import { startExpiredSubscriptionsJob } from './modules/subscriptions/jobs/check-expired-subscriptions.job';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +37,9 @@ app.use(
 
 // Compression middleware
 app.use(compression());
+
+// Webhook routes need raw body - must be before JSON parser
+app.use('/api/webhooks', webhookRoutes);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -60,8 +69,12 @@ app.get('/health', (_req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin/instructors', instructorRoutes);
+app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api', progressRoutes);
+app.use('/api', assessmentRoutes);
 
 // 404 handler
 app.use((_req, res) => {
@@ -89,6 +102,9 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+    // Start cron jobs
+    startExpiredSubscriptionsJob();
 
     // Start server
     app.listen(PORT, () => {
