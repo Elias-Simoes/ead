@@ -1,6 +1,7 @@
 import { pool } from '@config/database';
 import { logger } from '@shared/utils/logger';
 import { storageService } from '@shared/services/storage.service';
+import { cacheService } from '@shared/services/cache.service';
 
 export interface CourseContent {
   id: string;
@@ -53,6 +54,12 @@ export interface LessonContent {
 }
 
 export class ProgressService {
+  private readonly CACHE_TTL = cacheService.getTTLPresets();
+  private readonly CACHE_KEYS = {
+    STUDENT_PROGRESS: 'progress:student',
+    COURSE_CONTENT: 'progress:course:content',
+  };
+
   /**
    * Get course content with modules and lessons
    */
@@ -306,6 +313,9 @@ export class ProgressService {
 
       await client.query('COMMIT');
 
+      // Invalidate student progress cache
+      await this.invalidateStudentProgressCache(studentId);
+
       logger.info('Lesson marked as completed', {
         studentId,
         courseId,
@@ -366,44 +376,52 @@ export class ProgressService {
   }
 
   /**
-   * Get all progress for a student
+   * Get all progress for a student (with cache)
    */
   async getStudentProgress(studentId: string): Promise<any[]> {
     try {
-      const result = await pool.query(
-        `SELECT sp.course_id, sp.progress_percentage, sp.is_favorite,
-                sp.last_accessed_at, sp.started_at, sp.completed_at,
-                c.title, c.description, c.cover_image, c.category, c.workload,
-                u.name as instructor_name,
-                (SELECT COUNT(*) FROM lessons l 
-                 JOIN modules m ON l.module_id = m.id 
-                 WHERE m.course_id = c.id) as total_lessons,
-                array_length(sp.completed_lessons, 1) as completed_lessons_count
-         FROM student_progress sp
-         JOIN courses c ON sp.course_id = c.id
-         JOIN instructors i ON c.instructor_id = i.id
-         JOIN users u ON i.id = u.id
-         WHERE sp.student_id = $1
-         ORDER BY sp.last_accessed_at DESC NULLS LAST`,
-        [studentId]
-      );
+      const cacheKey = cacheService.generateKey(this.CACHE_KEYS.STUDENT_PROGRESS, studentId);
 
-      return result.rows.map((row) => ({
-        courseId: row.course_id,
-        title: row.title,
-        description: row.description,
-        coverImage: row.cover_image,
-        category: row.category,
-        workload: row.workload,
-        instructorName: row.instructor_name,
-        progressPercentage: parseFloat(row.progress_percentage),
-        isFavorite: row.is_favorite,
-        lastAccessedAt: row.last_accessed_at,
-        startedAt: row.started_at,
-        completedAt: row.completed_at,
-        totalLessons: parseInt(row.total_lessons),
-        completedLessonsCount: row.completed_lessons_count || 0,
-      }));
+      return await cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          const result = await pool.query(
+            `SELECT sp.course_id, sp.progress_percentage, sp.is_favorite,
+                    sp.last_accessed_at, sp.started_at, sp.completed_at,
+                    c.title, c.description, c.cover_image, c.category, c.workload,
+                    u.name as instructor_name,
+                    (SELECT COUNT(*) FROM lessons l 
+                     JOIN modules m ON l.module_id = m.id 
+                     WHERE m.course_id = c.id) as total_lessons,
+                    array_length(sp.completed_lessons, 1) as completed_lessons_count
+             FROM student_progress sp
+             JOIN courses c ON sp.course_id = c.id
+             JOIN instructors i ON c.instructor_id = i.id
+             JOIN users u ON i.id = u.id
+             WHERE sp.student_id = $1
+             ORDER BY sp.last_accessed_at DESC NULLS LAST`,
+            [studentId]
+          );
+
+          return result.rows.map((row) => ({
+            courseId: row.course_id,
+            title: row.title,
+            description: row.description,
+            coverImage: row.cover_image,
+            category: row.category,
+            workload: row.workload,
+            instructorName: row.instructor_name,
+            progressPercentage: parseFloat(row.progress_percentage),
+            isFavorite: row.is_favorite,
+            lastAccessedAt: row.last_accessed_at,
+            startedAt: row.started_at,
+            completedAt: row.completed_at,
+            totalLessons: parseInt(row.total_lessons),
+            completedLessonsCount: row.completed_lessons_count || 0,
+          }));
+        },
+        this.CACHE_TTL.SHORT // 5 minutes
+      );
     } catch (error) {
       logger.error('Failed to get student progress', { studentId, error });
       throw error;
@@ -451,6 +469,9 @@ export class ProgressService {
 
       await client.query('COMMIT');
 
+      // Invalidate student progress cache
+      await this.invalidateStudentProgressCache(studentId);
+
       logger.info('Favorite status toggled', { studentId, courseId, isFavorite });
 
       return isFavorite;
@@ -492,6 +513,20 @@ export class ProgressService {
     } catch (error) {
       logger.error('Failed to get student history', { studentId, error });
       throw error;
+    }
+  }
+
+  /**
+   * Invalidate student progress cache
+   */
+  private async invalidateStudentProgressCache(studentId: string): Promise<void> {
+    try {
+      const cacheKey = cacheService.generateKey(this.CACHE_KEYS.STUDENT_PROGRESS, studentId);
+      await cacheService.delete(cacheKey);
+      logger.debug('Student progress cache invalidated', { studentId });
+    } catch (error) {
+      logger.error('Failed to invalidate student progress cache', { studentId, error });
+      // Don't throw - cache invalidation failure shouldn't break the operation
     }
   }
 }

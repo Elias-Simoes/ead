@@ -159,6 +159,17 @@ router.patch(
 // Module routes
 
 /**
+ * @route   GET /api/courses/:id/modules
+ * @desc    Get all modules for a course
+ * @access  Authenticated users
+ */
+router.get(
+  '/:id/modules',
+  authenticate,
+  moduleController.getModulesByCourse.bind(moduleController)
+);
+
+/**
  * @route   POST /api/courses/:id/modules
  * @desc    Add a module to a course
  * @access  Instructor (owner only)

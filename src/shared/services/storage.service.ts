@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '@config/env';
@@ -201,6 +202,9 @@ export class StorageService {
       'text/css',
       'text/javascript',
       'application/json',
+      // Database
+      'application/sql',
+      'application/x-sql',
     ];
 
     if (!allowedTypes.includes(contentType)) {
@@ -229,6 +233,62 @@ export class StorageService {
     };
 
     return extensions[contentType] || '';
+  }
+
+  /**
+   * List files in a folder
+   */
+  async listFiles(prefix: string): Promise<Array<{ key: string; lastModified: Date; size: number }>> {
+    try {
+      const command = new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+      });
+
+      const response = await this.s3Client.send(command);
+
+      if (!response.Contents) {
+        return [];
+      }
+
+      return response.Contents.map((item) => ({
+        key: item.Key || '',
+        lastModified: item.LastModified || new Date(),
+        size: item.Size || 0,
+      }));
+    } catch (error) {
+      logger.error('Failed to list files', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download a file from storage
+   */
+  async downloadFile(key: string): Promise<Buffer> {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+
+      const response = await this.s3Client.send(command);
+
+      if (!response.Body) {
+        throw new Error('File not found');
+      }
+
+      // Convert stream to buffer
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as any) {
+        chunks.push(chunk);
+      }
+
+      return Buffer.concat(chunks);
+    } catch (error) {
+      logger.error('Failed to download file', error);
+      throw error;
+    }
   }
 }
 

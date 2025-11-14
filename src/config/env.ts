@@ -8,6 +8,11 @@ export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   apiUrl: process.env.API_URL || 'http://localhost:3000',
 
+  // App
+  app: {
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  },
+
   // Database
   database: {
     url: process.env.DATABASE_URL || '',

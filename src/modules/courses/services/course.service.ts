@@ -1,5 +1,7 @@
 import { pool } from '@config/database';
 import { logger } from '@shared/utils/logger';
+import { emailQueueService } from '@modules/notifications/services/email-queue.service';
+import { cacheService } from '@shared/services/cache.service';
 
 export interface CreateCourseData {
   title: string;
@@ -34,6 +36,14 @@ export interface Course {
 }
 
 export class CourseService {
+  private readonly CACHE_TTL = cacheService.getTTLPresets();
+  private readonly CACHE_KEYS = {
+    COURSE: 'course',
+    COURSE_DETAILS: 'course:details',
+    PUBLISHED_COURSES: 'courses:published',
+    INSTRUCTOR_COURSES: 'courses:instructor',
+  };
+
   /**
    * Create a new course (draft status)
    */
@@ -68,20 +78,28 @@ export class CourseService {
   }
 
   /**
-   * Get course by ID
+   * Get course by ID (with cache)
    */
   async getCourseById(courseId: string): Promise<Course | null> {
     try {
-      const result = await pool.query(
-        'SELECT * FROM courses WHERE id = $1',
-        [courseId]
+      const cacheKey = cacheService.generateKey(this.CACHE_KEYS.COURSE, courseId);
+
+      return await cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          const result = await pool.query(
+            'SELECT * FROM courses WHERE id = $1',
+            [courseId]
+          );
+
+          if (result.rows.length === 0) {
+            return null;
+          }
+
+          return result.rows[0];
+        },
+        this.CACHE_TTL.LONG // 1 hour
       );
-
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0];
     } catch (error) {
       logger.error('Failed to get course', error);
       throw error;
@@ -89,54 +107,64 @@ export class CourseService {
   }
 
   /**
-   * Get course with full details (including modules and lessons)
+   * Get course with full details (including modules and lessons) - with cache
    */
   async getCourseWithDetails(courseId: string): Promise<any | null> {
-    const client = await pool.connect();
-
     try {
-      // Get course
-      const courseResult = await client.query(
-        'SELECT * FROM courses WHERE id = $1',
-        [courseId]
+      const cacheKey = cacheService.generateKey(this.CACHE_KEYS.COURSE_DETAILS, courseId);
+
+      return await cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          const client = await pool.connect();
+
+          try {
+            // Get course
+            const courseResult = await client.query(
+              'SELECT * FROM courses WHERE id = $1',
+              [courseId]
+            );
+
+            if (courseResult.rows.length === 0) {
+              return null;
+            }
+
+            const course = courseResult.rows[0];
+
+            // Get modules
+            const modulesResult = await client.query(
+              'SELECT * FROM modules WHERE course_id = $1 ORDER BY order_index ASC',
+              [courseId]
+            );
+
+            // Get lessons for each module
+            const modules = await Promise.all(
+              modulesResult.rows.map(async (module) => {
+                const lessonsResult = await client.query(
+                  'SELECT * FROM lessons WHERE module_id = $1 ORDER BY order_index ASC',
+                  [module.id]
+                );
+
+                return {
+                  ...module,
+                  lessons: lessonsResult.rows,
+                };
+              })
+            );
+
+            return {
+              ...course,
+              modules,
+            };
+          } finally {
+            client.release();
+          }
+        },
+        this.CACHE_TTL.LONG // 1 hour
       );
-
-      if (courseResult.rows.length === 0) {
-        return null;
-      }
-
-      const course = courseResult.rows[0];
-
-      // Get modules
-      const modulesResult = await client.query(
-        'SELECT * FROM modules WHERE course_id = $1 ORDER BY order_index ASC',
-        [courseId]
-      );
-
-      // Get lessons for each module
-      const modules = await Promise.all(
-        modulesResult.rows.map(async (module) => {
-          const lessonsResult = await client.query(
-            'SELECT * FROM lessons WHERE module_id = $1 ORDER BY order_index ASC',
-            [module.id]
-          );
-
-          return {
-            ...module,
-            lessons: lessonsResult.rows,
-          };
-        })
-      );
-
-      return {
-        ...course,
-        modules,
-      };
     } catch (error) {
       logger.error('Failed to get course with details', error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
@@ -191,6 +219,9 @@ export class CourseService {
       if (result.rows.length === 0) {
         throw new Error('COURSE_NOT_FOUND');
       }
+
+      // Invalidate cache for this course
+      await this.invalidateCourseCache(courseId);
 
       logger.info('Course updated', { courseId });
 
@@ -344,6 +375,25 @@ export class CourseService {
 
       logger.info('Course submitted for approval', { courseId });
 
+      // Get instructor details for email
+      const instructorResult = await pool.query(
+        'SELECT u.name, u.email FROM users u WHERE u.id = $1',
+        [result.rows[0].instructor_id]
+      );
+
+      if (instructorResult.rows.length > 0) {
+        const instructor = instructorResult.rows[0];
+        // Send course submitted email (async, don't wait)
+        emailQueueService.enqueueCourseSubmittedEmail({
+          instructorName: instructor.name,
+          instructorEmail: instructor.email,
+          courseTitle: result.rows[0].title,
+          courseId: result.rows[0].id,
+        }).catch((error) => {
+          logger.error('Failed to enqueue course submitted email', error);
+        });
+      }
+
       return result.rows[0];
     } catch (error) {
       await client.query('ROLLBACK');
@@ -389,7 +439,30 @@ export class CourseService {
 
       await client.query('COMMIT');
 
+      // Invalidate cache since course is now published
+      await this.invalidateCourseCache(courseId);
+      await this.invalidatePublishedCoursesCache();
+
       logger.info('Course approved', { courseId, adminId });
+
+      // Get instructor details for email
+      const instructorResult = await pool.query(
+        'SELECT u.name, u.email FROM users u WHERE u.id = $1',
+        [result.rows[0].instructor_id]
+      );
+
+      if (instructorResult.rows.length > 0) {
+        const instructor = instructorResult.rows[0];
+        // Send course approved email (async, don't wait)
+        emailQueueService.enqueueCourseApprovedEmail({
+          instructorName: instructor.name,
+          instructorEmail: instructor.email,
+          courseTitle: result.rows[0].title,
+          courseId: result.rows[0].id,
+        }).catch((error) => {
+          logger.error('Failed to enqueue course approved email', error);
+        });
+      }
 
       return result.rows[0];
     } catch (error) {
@@ -452,6 +525,26 @@ export class CourseService {
       );
 
       logger.info('Course rejected', { courseId, adminId, reason });
+
+      // Get instructor details for email
+      const instructorResult = await pool.query(
+        'SELECT u.name, u.email FROM users u WHERE u.id = $1',
+        [result.rows[0].instructor_id]
+      );
+
+      if (instructorResult.rows.length > 0) {
+        const instructor = instructorResult.rows[0];
+        // Send course rejected email (async, don't wait)
+        emailQueueService.enqueueCourseRejectedEmail({
+          instructorName: instructor.name,
+          instructorEmail: instructor.email,
+          courseTitle: result.rows[0].title,
+          courseId: result.rows[0].id,
+          reason,
+        }).catch((error) => {
+          logger.error('Failed to enqueue course rejected email', error);
+        });
+      }
 
       return result.rows[0];
     } catch (error) {
@@ -598,6 +691,39 @@ export class CourseService {
     } catch (error) {
       logger.error('Failed to get course version', error);
       throw error;
+    }
+  }
+
+  /**
+   * Invalidate cache for a specific course
+   */
+  private async invalidateCourseCache(courseId: string): Promise<void> {
+    try {
+      // Invalidate course cache
+      await cacheService.delete(cacheService.generateKey(this.CACHE_KEYS.COURSE, courseId));
+      
+      // Invalidate course details cache
+      await cacheService.delete(cacheService.generateKey(this.CACHE_KEYS.COURSE_DETAILS, courseId));
+      
+      // Invalidate all published courses lists (they contain this course)
+      await cacheService.deletePattern(`${this.CACHE_KEYS.PUBLISHED_COURSES}:*`);
+      
+      logger.debug('Course cache invalidated', { courseId });
+    } catch (error) {
+      logger.error('Failed to invalidate course cache', { courseId, error });
+      // Don't throw - cache invalidation failure shouldn't break the operation
+    }
+  }
+
+  /**
+   * Invalidate all published courses cache
+   */
+  private async invalidatePublishedCoursesCache(): Promise<void> {
+    try {
+      await cacheService.deletePattern(`${this.CACHE_KEYS.PUBLISHED_COURSES}:*`);
+      logger.debug('Published courses cache invalidated');
+    } catch (error) {
+      logger.error('Failed to invalidate published courses cache', error);
     }
   }
 }

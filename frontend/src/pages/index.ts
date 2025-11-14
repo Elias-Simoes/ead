@@ -1,0 +1,30 @@
+export { default as HomePage } from './HomePage'
+export { default as LoginPage } from './LoginPage'
+export { default as RegisterPage } from './RegisterPage'
+export { default as ForgotPasswordPage } from './ForgotPasswordPage'
+export { default as ResetPasswordPage } from './ResetPasswordPage'
+export { CoursesPage } from './CoursesPage'
+export { CourseDetailPage } from './CourseDetailPage'
+export { LessonPlayerPage } from './LessonPlayerPage'
+export { MyCoursesPage } from './MyCoursesPage'
+export { ProfilePage } from './ProfilePage'
+export { CertificatesPage } from './CertificatesPage'
+
+// Instructor pages
+export {
+  InstructorDashboardPage,
+  CourseFormPage,
+  ModulesManagementPage,
+  AssessmentsManagementPage,
+  GradingPage,
+  CourseStudentsPage,
+} from './instructor'
+
+// Admin pages
+export {
+  AdminDashboardPage,
+  InstructorsManagementPage,
+  CourseApprovalPage,
+  SubscriptionsManagementPage,
+  ReportsPage,
+} from './admin'

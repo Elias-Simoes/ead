@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authController } from '../controllers/auth.controller';
 import { loginRateLimit } from '@shared/middleware/rateLimit.middleware';
+import { authenticate } from '@shared/middleware/auth.middleware';
 
 const router = Router();
 
@@ -38,6 +39,15 @@ router.post('/refresh', (req, res, next) =>
  */
 router.post('/logout', (req, res, next) =>
   authController.logout(req, res, next)
+);
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user
+ * @access  Private
+ */
+router.get('/me', authenticate, (req, res, next) =>
+  authController.me(req, res, next)
 );
 
 /**

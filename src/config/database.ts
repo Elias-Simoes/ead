@@ -2,16 +2,20 @@ import { Pool } from 'pg';
 import { config } from './env';
 import { logger } from '../shared/utils/logger';
 
-// PostgreSQL connection pool
+// PostgreSQL connection pool with optimized settings
 export const pool = new Pool({
   host: config.database.host,
   port: config.database.port,
   database: config.database.name,
   user: config.database.user,
   password: config.database.password,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  max: 20, // Maximum number of clients in the pool
+  min: 2, // Minimum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
+  maxUses: 7500, // Close and replace a connection after it has been used 7500 times
+  allowExitOnIdle: false, // Don't allow the pool to close when all clients are idle
+  statement_timeout: 30000, // Cancel queries that take longer than 30 seconds
 });
 
 // Test database connection

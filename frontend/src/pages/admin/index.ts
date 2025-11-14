@@ -1,0 +1,5 @@
+export { default as AdminDashboardPage } from './AdminDashboardPage'
+export { default as InstructorsManagementPage } from './InstructorsManagementPage'
+export { default as CourseApprovalPage } from './CourseApprovalPage'
+export { default as SubscriptionsManagementPage } from './SubscriptionsManagementPage'
+export { default as ReportsPage } from './ReportsPage'

@@ -41,7 +41,15 @@ export class AdminSubscriptionController {
   async getSubscriptionStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await adminSubscriptionService.getSubscriptionStats();
-      res.json(stats);
+      res.json({
+        data: {
+          totalActive: stats.totalActive,
+          totalSuspended: stats.totalSuspended,
+          totalCancelled: stats.totalCancelled,
+          mrr: stats.monthlyRecurringRevenue,
+          churnRate: stats.churnRate / 100, // Convert to decimal
+        }
+      });
     } catch (error) {
       logger.error('Error getting subscription stats', error);
       res.status(500).json({

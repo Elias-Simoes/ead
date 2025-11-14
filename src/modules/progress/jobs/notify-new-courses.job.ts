@@ -1,7 +1,6 @@
 import { pool } from '@config/database';
-import { emailService } from '@shared/services/email.service';
+import { emailQueueService } from '@modules/notifications/services/email-queue.service';
 import { logger } from '@shared/utils/logger';
-import { config } from '@config/env';
 
 export interface NewCourseNotificationData {
   courseId: string;
@@ -78,14 +77,13 @@ export class NotifyNewCoursesJob {
     student: { email: string; name: string },
     course: NewCourseNotificationData
   ): Promise<void> {
-    const html = this.getNewCourseEmailTemplate(student.name, course);
-    const text = this.getNewCourseEmailTextTemplate(student.name, course);
-
-    await emailService.sendEmail({
-      to: student.email,
-      subject: `Novo Curso Disponível: ${course.courseTitle}`,
-      html,
-      text,
+    await emailQueueService.enqueueNewCoursePublishedEmail({
+      studentName: student.name,
+      studentEmail: student.email,
+      courseTitle: course.courseTitle,
+      courseDescription: course.courseDescription,
+      instructorName: course.instructorName,
+      courseId: course.courseId,
     });
   }
 
@@ -204,164 +202,6 @@ export class NotifyNewCoursesJob {
       logger.error('New courses notification job failed', error);
       throw error;
     }
-  }
-
-  /**
-   * Get HTML template for new course email
-   */
-  private getNewCourseEmailTemplate(
-    studentName: string,
-    course: NewCourseNotificationData
-  ): string {
-    const courseUrl = `${config.app.frontendUrl}/courses/${course.courseId}`;
-
-    return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Novo Curso Disponível</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    .header {
-      background-color: #4F46E5;
-      color: white;
-      padding: 20px;
-      text-align: center;
-      border-radius: 8px 8px 0 0;
-    }
-    .content {
-      background-color: #f9fafb;
-      padding: 30px;
-      border-radius: 0 0 8px 8px;
-    }
-    .course-card {
-      background-color: white;
-      border-radius: 8px;
-      overflow: hidden;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .course-image {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-    }
-    .course-info {
-      padding: 20px;
-    }
-    .course-title {
-      font-size: 24px;
-      font-weight: bold;
-      color: #1f2937;
-      margin: 0 0 10px 0;
-    }
-    .course-instructor {
-      color: #6b7280;
-      font-size: 14px;
-      margin-bottom: 15px;
-    }
-    .course-description {
-      color: #4b5563;
-      line-height: 1.6;
-    }
-    .button {
-      display: inline-block;
-      background-color: #4F46E5;
-      color: white;
-      padding: 12px 24px;
-      text-decoration: none;
-      border-radius: 6px;
-      margin: 20px 0;
-      text-align: center;
-    }
-    .footer {
-      text-align: center;
-      color: #6b7280;
-      font-size: 14px;
-      margin-top: 30px;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🎓 Novo Curso Disponível!</h1>
-  </div>
-  <div class="content">
-    <p>Olá <strong>${studentName}</strong>,</p>
-    
-    <p>Temos uma ótima notícia! Um novo curso acaba de ser publicado na plataforma e está disponível para você:</p>
-    
-    <div class="course-card">
-      ${course.coverImage ? `<img src="${course.coverImage}" alt="${course.courseTitle}" class="course-image">` : ''}
-      <div class="course-info">
-        <h2 class="course-title">${course.courseTitle}</h2>
-        <p class="course-instructor">Por ${course.instructorName}</p>
-        <p class="course-description">${course.courseDescription}</p>
-      </div>
-    </div>
-    
-    <p>Como assinante ativo, você já tem acesso completo a este curso. Comece agora mesmo!</p>
-    
-    <center>
-      <a href="${courseUrl}" class="button">Acessar Curso</a>
-    </center>
-    
-    <p>Aproveite e bons estudos!</p>
-    
-    <p><strong>Equipe Plataforma EAD</strong></p>
-  </div>
-  
-  <div class="footer">
-    <p>Este é um e-mail automático, por favor não responda.</p>
-    <p>&copy; ${new Date().getFullYear()} Plataforma EAD. Todos os direitos reservados.</p>
-  </div>
-</body>
-</html>
-    `.trim();
-  }
-
-  /**
-   * Get plain text template for new course email
-   */
-  private getNewCourseEmailTextTemplate(
-    studentName: string,
-    course: NewCourseNotificationData
-  ): string {
-    const courseUrl = `${config.app.frontendUrl}/courses/${course.courseId}`;
-
-    return `
-🎓 Novo Curso Disponível!
-
-Olá ${studentName},
-
-Temos uma ótima notícia! Um novo curso acaba de ser publicado na plataforma e está disponível para você:
-
-${course.courseTitle}
-Por ${course.instructorName}
-
-${course.courseDescription}
-
-Como assinante ativo, você já tem acesso completo a este curso. Comece agora mesmo!
-
-Acessar Curso: ${courseUrl}
-
-Aproveite e bons estudos!
-
-Equipe Plataforma EAD
-
----
-Este é um e-mail automático, por favor não responda.
-© ${new Date().getFullYear()} Plataforma EAD. Todos os direitos reservados.
-    `.trim();
   }
 }
 

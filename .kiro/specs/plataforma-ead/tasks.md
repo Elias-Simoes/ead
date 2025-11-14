@@ -438,69 +438,99 @@
   - Testar que aluno não pode resubmeter
   - _Requisitos: 3.5, 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 8. Implementar módulo de certificados
+- [x] 8. Implementar módulo de certificados
+
+
+
+
   - _Requisitos: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 8.1 Criar schema de certificados
+- [x] 8.1 Criar schema de certificados
+
+
   - Implementar migration para tabela certificates (id, student_id, course_id, verification_code, pdf_url, issued_at)
   - Adicionar constraint UNIQUE(student_id, course_id)
   - Adicionar índice em verification_code
   - _Requisitos: 8.1, 8.2, 8.4_
 
-- [ ] 8.2 Implementar serviço de geração de PDF
+- [x] 8.2 Implementar serviço de geração de PDF
+
+
   - Integrar biblioteca de geração de PDF (PDFKit/Puppeteer)
   - Criar template de certificado com logo, nome do aluno, curso, carga horária, data, código de verificação
   - Gerar QR Code com link de validação
   - Fazer upload do PDF para S3/R2 e retornar URL
   - _Requisitos: 8.2_
 
-- [ ] 8.3 Implementar lógica de emissão automática
+- [x] 8.3 Implementar lógica de emissão automática
+
+
   - Criar job que verifica cursos 100% concluídos com nota >= passing_score
   - Gerar certificado automaticamente se não existir
   - Gerar código único de verificação (UUID)
   - Enviar email com link de download
   - _Requisitos: 8.1, 8.3_
 
-- [ ] 8.4 Criar endpoints de certificados
+- [x] 8.4 Criar endpoints de certificados
+
+
   - Implementar GET /api/certificates (listar certificados do aluno)
   - Implementar GET /api/certificates/:id/download (download do PDF)
   - Implementar GET /api/public/certificates/verify/:code (validação pública)
   - Endpoint de validação não requer autenticação
   - _Requisitos: 8.4, 8.5, 11.4_
 
-- [ ] 8.5 Criar testes para módulo de certificados
+- [x] 8.5 Criar testes para módulo de certificados
+
+
   - Testar emissão automática após conclusão
   - Testar que certificado não é emitido se nota < passing_score
   - Testar validação pública de certificado
   - Testar que não duplica certificado
   - _Requisitos: 8.1, 8.2, 8.5_
 
-- [ ] 9. Implementar módulo de acompanhamento do instrutor
+- [x] 9. Implementar módulo de acompanhamento do instrutor
+
+
+
+
   - _Requisitos: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 9.1 Criar endpoints de visualização de alunos
+- [x] 9.1 Criar endpoints de visualização de alunos
+
+
   - Implementar GET /api/instructor/courses/:id/students (listar alunos matriculados)
   - Implementar GET /api/instructor/students/:id/progress/:courseId (progresso detalhado de um aluno)
   - Exibir percentual de conclusão, aulas concluídas, tempo de estudo
   - Adicionar proteção: instrutor só vê alunos dos próprios cursos
   - _Requisitos: 9.1, 9.2_
 
-- [ ] 9.2 Criar dashboard do instrutor
+- [x] 9.2 Criar dashboard do instrutor
+
+
   - Implementar GET /api/instructor/dashboard (métricas dos cursos do instrutor)
   - Retornar: total de alunos, taxa de conclusão média, avaliações pendentes
   - Listar cursos com estatísticas individuais
   - _Requisitos: 9.1, 9.2, 9.5_
 
-- [ ] 9.3 Criar testes para acompanhamento do instrutor
+- [x] 9.3 Criar testes para acompanhamento do instrutor
+
+
   - Testar listagem de alunos matriculados
   - Testar que instrutor não vê alunos de outros cursos
   - Testar dashboard com métricas
   - _Requisitos: 9.1, 9.2_
 
-- [ ] 10. Implementar módulo de relatórios administrativos
+- [x] 10. Implementar módulo de relatórios administrativos
+
+
+
+
   - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 10.1 Criar serviço de cálculo de métricas
+- [x] 10.1 Criar serviço de cálculo de métricas
+
+
   - Implementar método para calcular total de assinantes ativos
   - Implementar método para calcular novos assinantes no período
   - Implementar método para calcular taxa de retenção (1 - churn rate)
@@ -508,7 +538,9 @@
   - Implementar método para calcular cursos mais acessados
   - _Requisitos: 10.1, 10.2, 10.3, 6.5_
 
-- [ ] 10.2 Criar endpoints de relatórios
+- [x] 10.2 Criar endpoints de relatórios
+
+
   - Implementar GET /api/admin/reports/overview (visão geral com principais métricas)
   - Implementar GET /api/admin/reports/subscriptions (relatório detalhado de assinaturas)
   - Implementar GET /api/admin/reports/courses (relatório de cursos: acessos, conclusões, avaliações)
@@ -517,36 +549,51 @@
   - Adicionar proteção: apenas admin
   - _Requisitos: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 10.3 Implementar exportação de relatórios
+- [x] 10.3 Implementar exportação de relatórios
+
+
   - Criar serviço de exportação para CSV
   - Criar serviço de exportação para PDF
   - Implementar GET /api/admin/reports/export (com query params: format, type, period)
   - Gerar arquivo e retornar para download
   - _Requisitos: 10.5_
 
-- [ ] 10.4 Integrar dados financeiros do gateway
+- [x] 10.4 Integrar dados financeiros do gateway
+
+
   - Buscar dados de pagamentos via API do gateway
   - Consolidar com dados locais de subscriptions e payments
   - Calcular métricas financeiras (receita total, média por assinante, etc.)
   - _Requisitos: 10.4_
 
-- [ ] 10.5 Criar testes para módulo de relatórios
+- [x] 10.5 Criar testes para módulo de relatórios
+
+
   - Testar cálculo de métricas com dados mockados
   - Testar geração de relatórios
   - Testar exportação em CSV e PDF
   - Testar que apenas admin acessa relatórios
   - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 11. Implementar módulo de notificações
+- [x] 11. Implementar módulo de notificações
+
+
+
+
+
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 11.1 Configurar serviço de email
+
+- [x] 11.1 Configurar serviço de email
+
   - Integrar com SendGrid/AWS SES/Mailgun
   - Configurar credenciais e domínio de envio
   - Criar EmailService com método sendEmail(to, subject, html)
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 11.2 Criar templates de email
+- [x] 11.2 Criar templates de email
+
+
   - Template de boas-vindas (cadastro de aluno)
   - Template de credenciais de instrutor
   - Template de curso enviado para aprovação
@@ -559,14 +606,18 @@
   - Template de redefinição de senha
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 11.3 Implementar fila de processamento de emails
+- [x] 11.3 Implementar fila de processamento de emails
+
+
   - Configurar Redis como message broker
   - Criar worker que processa fila de emails
   - Adicionar retry logic para falhas de envio
   - Registrar logs de emails enviados
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 11.4 Integrar notificações nos fluxos existentes
+- [x] 11.4 Integrar notificações nos fluxos existentes
+
+
   - Enviar email ao criar instrutor (task 3.4)
   - Enviar email ao aprovar/rejeitar curso (task 4.5)
   - Enviar email ao publicar novo curso (task 6.6)
@@ -574,127 +625,182 @@
   - Enviar email ao confirmar assinatura (task 5.4)
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 11.5 Criar testes para módulo de notificações
+- [x] 11.5 Criar testes para módulo de notificações
+
+
   - Testar envio de email (mock do serviço)
   - Testar processamento da fila
   - Testar retry em caso de falha
   - _Requisitos: 2.3, 4.3, 7.5, 8.3_
 
-- [ ] 12. Implementar funcionalidades de segurança e LGPD
+- [x] 12. Implementar funcionalidades de segurança e LGPD
+
+
+
+
   - _Requisitos: 12.1, 12.2, 12.3, 12.4, 12.5, 14.1, 14.2, 14.3, 14.4, 14.5_
 
-- [ ] 12.1 Implementar headers de segurança
+- [x] 12.1 Implementar headers de segurança
+
+
   - Adicionar middleware para headers: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
   - Configurar CORS adequadamente
   - _Requisitos: 12.1_
 
-- [ ] 12.2 Implementar proteção CSRF
+
+- [x] 12.2 Implementar proteção CSRF
+
   - Gerar tokens CSRF para formulários
   - Validar tokens em requisições POST/PUT/DELETE
   - _Requisitos: 12.1_
 
-- [ ] 12.3 Implementar rate limiting global
+- [x] 12.3 Implementar rate limiting global
+
+
   - Adicionar middleware de rate limiting (100 req/min por IP)
   - Usar Redis para armazenar contadores
   - Retornar 429 quando limite excedido
   - _Requisitos: 12.3_
 
-- [ ] 12.4 Implementar logs de auditoria
+
+- [x] 12.4 Implementar logs de auditoria
+
   - Criar tabela audit_logs (id, user_id, action, resource, details, ip_address, timestamp)
   - Registrar ações críticas: login, criação de usuário, alteração de permissões, etc.
   - _Requisitos: 12.5_
 
-- [ ] 12.5 Implementar endpoints LGPD
+- [x] 12.5 Implementar endpoints LGPD
+
+
   - Implementar GET /api/gdpr/my-data (retornar todos os dados do usuário em JSON)
   - Implementar POST /api/gdpr/delete-account (solicitar exclusão de conta)
   - Implementar job que processa solicitações de exclusão (anonimiza dados em 15 dias)
   - Manter dados obrigatórios (pagamentos, certificados) mas anonimizar informações pessoais
   - _Requisitos: 14.2, 14.3, 14.4_
 
-- [ ] 12.6 Criar testes de segurança
+- [x] 12.6 Criar testes de segurança
+
+
   - Testar rate limiting
   - Testar proteção CSRF
   - Testar headers de segurança
   - Testar endpoints LGPD
   - _Requisitos: 12.1, 12.3, 14.2, 14.3, 14.4_
 
-- [ ] 13. Implementar cache e otimizações de performance
+- [x] 13. Implementar cache e otimizações de performance
+
+
+
+
+
   - _Requisitos: 15.1, 15.3, 15.4_
 
-- [ ] 13.1 Configurar Redis para cache
+
+- [x] 13.1 Configurar Redis para cache
+
   - Configurar conexão com Redis
   - Criar CacheService com métodos get(), set(), delete(), clear()
   - Configurar TTLs padrão
   - _Requisitos: 15.1, 15.4_
 
-- [ ] 13.2 Implementar cache de cursos
+
+- [x] 13.2 Implementar cache de cursos
+
   - Cachear lista de cursos publicados (TTL: 15 min)
   - Cachear detalhes de curso individual (TTL: 1 hora)
   - Invalidar cache ao publicar/atualizar curso
   - _Requisitos: 15.1_
 
-- [ ] 13.3 Implementar cache de progresso
+
+- [x] 13.3 Implementar cache de progresso
+
   - Cachear progresso do aluno por curso (TTL: 5 min)
   - Invalidar cache ao atualizar progresso
   - _Requisitos: 15.1_
 
-- [ ] 13.4 Otimizar queries do banco de dados
+
+- [x] 13.4 Otimizar queries do banco de dados
+
   - Adicionar índices em colunas frequentemente consultadas
   - Implementar eager loading para relacionamentos
   - Adicionar paginação em todas as listagens
   - _Requisitos: 15.1, 15.4_
 
-- [ ] 13.5 Implementar compressão de respostas
+- [x] 13.5 Implementar compressão de respostas
+
+
   - Adicionar middleware de compressão gzip/brotli
   - Configurar para respostas > 1KB
   - _Requisitos: 15.1_
 
-- [ ] 13.6 Criar testes de performance
+
+- [x] 13.6 Criar testes de performance
+
   - Testar tempo de resposta de endpoints críticos
   - Validar que 95% das requisições respondem em < 2s
   - Testar cache hit/miss
   - _Requisitos: 15.1_
 
-- [ ] 14. Implementar backup e monitoramento
+- [x] 14. Implementar backup e monitoramento
+
+
+
+
   - _Requisitos: 13.2, 13.3, 13.4, 15.2_
 
-- [ ] 14.1 Configurar backup automático do banco de dados
+- [x] 14.1 Configurar backup automático do banco de dados
+
+
   - Criar script de backup diário (pg_dump)
   - Configurar cron job para executar às 03:00 AM
   - Fazer upload do backup para S3/R2
   - Implementar rotação de backups (manter últimos 30 dias)
   - _Requisitos: 13.2, 13.3_
 
-- [ ] 14.2 Implementar endpoint de restore
+
+- [x] 14.2 Implementar endpoint de restore
+
   - Criar script de restauração de backup
   - Implementar POST /api/admin/backup/restore (apenas admin)
   - Validar integridade do backup antes de restaurar
   - _Requisitos: 13.4_
 
-- [ ] 14.3 Configurar logging estruturado
+
+
+- [x] 14.3 Configurar logging estruturado
+
   - Implementar logger com níveis (ERROR, WARN, INFO, DEBUG)
   - Incluir contexto: timestamp, userId, requestId, stack trace
   - Configurar rotação de logs
   - _Requisitos: 12.5_
 
-- [ ] 14.4 Implementar health checks
+
+- [x] 14.4 Implementar health checks
+
   - Criar endpoint GET /health (verifica status da API)
   - Criar endpoint GET /health/db (verifica conexão com banco)
   - Criar endpoint GET /health/redis (verifica conexão com Redis)
   - Retornar status 200 se tudo OK, 503 se algum serviço falhar
   - _Requisitos: 15.2_
 
-- [ ] 14.5 Configurar alertas de monitoramento
+
+- [x] 14.5 Configurar alertas de monitoramento
+
   - Configurar alertas para erros críticos (500)
   - Configurar alertas para tempo de resposta > 5s
   - Configurar alertas para falhas de backup
   - Configurar alertas para uso de recursos (CPU, memória, disco)
   - _Requisitos: 15.2_
 
-- [ ] 15. Implementar frontend básico
+- [-] 15. Implementar frontend básico
+
+
   - _Requisitos: 16.1, 16.2, 16.3, 16.4, 16.5_
 
-- [ ] 15.1 Configurar projeto frontend
+- [x] 15.1 Configurar projeto frontend
+
+
+
   - Criar projeto React/Vue com Vite
   - Configurar Tailwind CSS ou Material-UI
   - Configurar React Router ou Vue Router
@@ -702,7 +808,12 @@
   - Configurar gerenciamento de estado (Redux/Zustand ou Pinia)
   - _Requisitos: 16.1, 16.2, 16.5_
 
-- [ ] 15.2 Implementar páginas de autenticação
+- [x] 15.2 Implementar páginas de autenticação
+
+
+
+
+
   - Criar página de login
   - Criar página de cadastro (aluno)
   - Criar página de redefinição de senha
@@ -710,7 +821,13 @@
   - Implementar renovação automática de tokens
   - _Requisitos: 1.1, 1.3, 1.5, 16.5_
 
-- [ ] 15.3 Implementar páginas do aluno
+- [x] 15.3 Implementar páginas do aluno
+
+
+
+
+
+
   - Criar página de listagem de cursos (com busca e filtros)
   - Criar página de detalhes do curso
   - Criar página de player de vídeo com lista de aulas
@@ -719,7 +836,12 @@
   - Criar página de certificados
   - _Requisitos: 7.1, 7.2, 7.3, 7.4, 11.1, 11.4, 16.1, 16.2, 16.5_
 
-- [ ] 15.4 Implementar páginas do instrutor
+- [x] 15.4 Implementar páginas do instrutor
+
+
+
+
+
   - Criar dashboard do instrutor
   - Criar página de criação/edição de curso
   - Criar página de gerenciamento de módulos e aulas
@@ -728,7 +850,12 @@
   - Criar página de visualização de alunos matriculados
   - _Requisitos: 3.1, 3.2, 3.3, 3.4, 3.5, 9.1, 9.2, 16.1, 16.2, 16.5_
 
-- [ ] 15.5 Implementar páginas do administrador
+- [x] 15.5 Implementar páginas do administrador
+
+
+
+
+
   - Criar dashboard administrativo com métricas
   - Criar página de gestão de instrutores
   - Criar página de aprovação de cursos

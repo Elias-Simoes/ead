@@ -5,6 +5,47 @@ import { logger } from '@shared/utils/logger';
 
 export class ModuleController {
   /**
+   * Get all modules for a course
+   * GET /api/courses/:id/modules
+   */
+  async getModulesByCourse(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: courseId } = req.params;
+
+      // Check if course exists
+      const course = await courseService.getCourseById(courseId);
+      if (!course) {
+        res.status(404).json({
+          error: {
+            code: 'COURSE_NOT_FOUND',
+            message: 'Course not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      const modules = await moduleService.getModulesByCourse(courseId);
+
+      res.status(200).json({
+        message: 'Modules retrieved successfully',
+        data: modules,
+      });
+    } catch (error) {
+      logger.error('Failed to get modules', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get modules',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
    * Create a new module
    * POST /api/courses/:id/modules
    */

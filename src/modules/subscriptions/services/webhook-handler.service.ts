@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { pool } from '@config/database';
 import { logger } from '@shared/utils/logger';
 import { subscriptionService } from './subscription.service';
+import { emailQueueService } from '@modules/notifications/services/email-queue.service';
 
 // Helper to safely get timestamp from Stripe date fields
 function getTimestamp(value: any): number {
@@ -179,6 +180,31 @@ export class WebhookHandlerService {
         invoiceId: invoice.id,
         subscriptionId,
       });
+
+      // Get student and plan details for email
+      const detailsResult = await pool.query(
+        `SELECT u.name, u.email, p.name as plan_name, s.current_period_end
+         FROM users u
+         INNER JOIN students st ON u.id = st.id
+         INNER JOIN subscriptions s ON st.id = s.student_id
+         INNER JOIN plans p ON s.plan_id = p.id
+         WHERE s.id = $1`,
+        [subscription.id]
+      );
+
+      if (detailsResult.rows.length > 0) {
+        const details = detailsResult.rows[0];
+        // Send subscription confirmed email (async, don't wait)
+        emailQueueService.enqueueSubscriptionConfirmedEmail({
+          studentName: details.name,
+          studentEmail: details.email,
+          planName: details.plan_name,
+          amount: invoice.amount_paid / 100,
+          expiresAt: new Date(details.current_period_end),
+        }).catch((error) => {
+          logger.error('Failed to enqueue subscription confirmed email', error);
+        });
+      }
     } catch (error) {
       await client.query('ROLLBACK');
       logger.error('Failed to handle invoice.payment_succeeded', error);

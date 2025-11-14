@@ -2,6 +2,7 @@ import { pool } from '@config/database';
 import { passwordService } from './password.service';
 import { tokenService, AuthTokens } from './token.service';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
+import { emailQueueService } from '@modules/notifications/services/email-queue.service';
 
 export interface User {
   id: string;
@@ -59,6 +60,14 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role,
+    });
+
+    // Send welcome email (async, don't wait)
+    emailQueueService.enqueueWelcomeEmail({
+      name: user.name,
+      email: user.email,
+    }).catch((error) => {
+      console.error('Failed to enqueue welcome email:', error);
     });
 
     return tokens;
@@ -241,9 +250,14 @@ export class AuthService {
       [user.id, resetToken, expiresAt]
     );
 
-    // TODO: Send email with reset link
-    // In production, send email to user.email with resetToken
-    // For now, we'll return the token (for testing purposes only)
+    // Send password reset email (async, don't wait)
+    emailQueueService.enqueuePasswordResetEmail({
+      name: user.name,
+      email: user.email,
+      resetToken,
+    }).catch((error) => {
+      console.error('Failed to enqueue password reset email:', error);
+    });
 
     return resetToken;
   }

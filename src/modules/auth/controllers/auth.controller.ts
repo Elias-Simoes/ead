@@ -7,6 +7,7 @@ import {
   logoutSchema,
 } from '../validators/auth.validator';
 import { logger } from '@shared/utils/logger';
+import { AuditService } from '@shared/services/audit.service';
 
 /**
  * Controller for authentication endpoints
@@ -65,6 +66,11 @@ export class AuthController {
 
       // Login user
       const { tokens, user } = await authService.login(validatedData);
+
+      // Log audit entry
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
+      const userAgent = req.get('user-agent');
+      await AuditService.logLogin(user.id, ipAddress, userAgent);
 
       logger.info('User logged in successfully', { userId: user.id });
 
@@ -161,8 +167,58 @@ export class AuthController {
       // Logout user
       await authService.logout(validatedData.refreshToken);
 
+      // Log audit entry if user is authenticated
+      if (req.user) {
+        const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+        await AuditService.logLogout(req.user.userId, ipAddress, userAgent);
+      }
+
       res.status(200).json({
         message: 'Logout successful',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get current user
+   * GET /api/auth/me
+   */
+  async me(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Not authenticated',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      const user = await authService.getUserById(req.user.userId);
+
+      if (!user) {
+        res.status(404).json({
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
       });
     } catch (error) {
       next(error);
@@ -215,6 +271,9 @@ export class AuthController {
         validatedData.token,
         validatedData.password
       );
+
+      // Note: Password change is logged in the auth service
+      // Could enhance to return userId and log here as well
 
       res.status(200).json({
         message: 'Password reset successful',

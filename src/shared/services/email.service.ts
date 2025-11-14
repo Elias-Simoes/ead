@@ -17,18 +17,63 @@ export interface InstructorCredentialsData {
 
 /**
  * Email service for sending transactional emails
- * Currently supports mock implementation for development
- * In production, integrate with SendGrid, AWS SES, or Mailgun
+ * Supports SendGrid, AWS SES, and Mailgun
  */
 export class EmailService {
+  private sendgridClient: any;
+  private sesClient: any;
+  private mailgunClient: any;
+
+  constructor() {
+    this.initializeProvider();
+  }
+
   /**
-   * Send an email
+   * Initialize the email provider based on configuration
+   */
+  private initializeProvider(): void {
+    const provider = config.email.provider;
+
+    try {
+      if (provider === 'sendgrid' && config.email.sendgrid.apiKey) {
+        // Initialize SendGrid
+        const sgMail = require('@sendgrid/mail');
+        sgMail.setApiKey(config.email.sendgrid.apiKey);
+        this.sendgridClient = sgMail;
+        logger.info('SendGrid email provider initialized');
+      } else if (provider === 'ses') {
+        // Initialize AWS SES
+        const { SESClient } = require('@aws-sdk/client-ses');
+        this.sesClient = new SESClient({
+          region: config.email.ses.region,
+        });
+        logger.info('AWS SES email provider initialized');
+      } else if (provider === 'mailgun' && config.email.mailgun.apiKey) {
+        // Initialize Mailgun
+        const formData = require('form-data');
+        const Mailgun = require('mailgun.js');
+        const mailgun = new Mailgun(formData);
+        this.mailgunClient = mailgun.client({
+          username: 'api',
+          key: config.email.mailgun.apiKey,
+        });
+        logger.info('Mailgun email provider initialized');
+      } else {
+        logger.warn('No email provider configured, emails will be logged only');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize email provider', { error, provider });
+    }
+  }
+
+  /**
+   * Send an email using the configured provider
    * @param options - Email options (to, subject, html, text)
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
       // In development, log the email instead of sending
-      if (config.nodeEnv === 'development') {
+      if (config.nodeEnv === 'development' && !this.sendgridClient && !this.sesClient && !this.mailgunClient) {
         logger.info('Email would be sent (development mode)', {
           to: options.to,
           subject: options.subject,
@@ -37,24 +82,26 @@ export class EmailService {
         return;
       }
 
-      // In production, integrate with actual email service
-      // Example for SendGrid:
-      // const sgMail = require('@sendgrid/mail');
-      // sgMail.setApiKey(config.email.sendgrid.apiKey);
-      // await sgMail.send({
-      //   to: options.to,
-      //   from: {
-      //     email: config.email.from,
-      //     name: config.email.fromName,
-      //   },
-      //   subject: options.subject,
-      //   html: options.html,
-      //   text: options.text,
-      // });
+      const provider = config.email.provider;
+
+      if (provider === 'sendgrid' && this.sendgridClient) {
+        await this.sendWithSendGrid(options);
+      } else if (provider === 'ses' && this.sesClient) {
+        await this.sendWithSES(options);
+      } else if (provider === 'mailgun' && this.mailgunClient) {
+        await this.sendWithMailgun(options);
+      } else {
+        // Fallback to logging
+        logger.info('Email logged (no provider configured)', {
+          to: options.to,
+          subject: options.subject,
+        });
+      }
 
       logger.info('Email sent successfully', {
         to: options.to,
         subject: options.subject,
+        provider,
       });
     } catch (error) {
       logger.error('Failed to send email', {
@@ -67,24 +114,93 @@ export class EmailService {
   }
 
   /**
+   * Send email using SendGrid
+   */
+  private async sendWithSendGrid(options: EmailOptions): Promise<void> {
+    await this.sendgridClient.send({
+      to: options.to,
+      from: {
+        email: config.email.from,
+        name: config.email.fromName,
+      },
+      subject: options.subject,
+      html: options.html,
+      text: options.text || this.stripHtml(options.html),
+    });
+  }
+
+  /**
+   * Send email using AWS SES
+   */
+  private async sendWithSES(options: EmailOptions): Promise<void> {
+    const { SendEmailCommand } = require('@aws-sdk/client-ses');
+    
+    const command = new SendEmailCommand({
+      Source: `${config.email.fromName} <${config.email.from}>`,
+      Destination: {
+        ToAddresses: [options.to],
+      },
+      Message: {
+        Subject: {
+          Data: options.subject,
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: options.html,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: options.text || this.stripHtml(options.html),
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    await this.sesClient.send(command);
+  }
+
+  /**
+   * Send email using Mailgun
+   */
+  private async sendWithMailgun(options: EmailOptions): Promise<void> {
+    await this.mailgunClient.messages.create(config.email.mailgun.domain, {
+      from: `${config.email.fromName} <${config.email.from}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text || this.stripHtml(options.html),
+    });
+  }
+
+  /**
+   * Strip HTML tags from text (simple implementation)
+   */
+  private stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
    * Send instructor credentials email
    * @param data - Instructor credentials data
    */
   async sendInstructorCredentials(data: InstructorCredentialsData): Promise<void> {
-    const html = this.getInstructorCredentialsTemplate(data);
-    const text = this.getInstructorCredentialsTextTemplate(data);
+    const { getInstructorCredentialsTemplate } = require('@modules/notifications/templates/email-templates');
+    const html = getInstructorCredentialsTemplate(data);
 
     await this.sendEmail({
       to: data.email,
       subject: 'Bem-vindo à Plataforma EAD - Suas Credenciais de Instrutor',
       html,
-      text,
     });
   }
 
   /**
-   * Get HTML template for instructor credentials email
+   * Get HTML template for instructor credentials email (deprecated - use templates module)
+   * @deprecated Use getInstructorCredentialsTemplate from email-templates module
    */
+  // @ts-ignore - Deprecated method kept for backward compatibility
   private getInstructorCredentialsTemplate(data: InstructorCredentialsData): string {
     return `
 <!DOCTYPE html>
@@ -217,6 +333,7 @@ export class EmailService {
   /**
    * Get plain text template for instructor credentials email
    */
+  // @ts-ignore - Deprecated method kept for backward compatibility
   private getInstructorCredentialsTextTemplate(data: InstructorCredentialsData): string {
     return `
 Bem-vindo à Plataforma EAD

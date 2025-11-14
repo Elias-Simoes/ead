@@ -1,6 +1,7 @@
 import { pool } from '@config/database';
 import { logger } from '@shared/utils/logger';
 import bcrypt from 'bcrypt';
+import { emailQueueService } from '@modules/notifications/services/email-queue.service';
 
 export interface CreateInstructorData {
   email: string;
@@ -75,6 +76,15 @@ export class InstructorService {
         instructorId: user.id,
         email: data.email,
         createdBy,
+      });
+
+      // Send instructor credentials email (async, don't wait)
+      emailQueueService.enqueueInstructorCredentialsEmail({
+        name: user.name,
+        email: user.email,
+        temporaryPassword,
+      }).catch((error) => {
+        logger.error('Failed to enqueue instructor credentials email', error);
       });
 
       return {

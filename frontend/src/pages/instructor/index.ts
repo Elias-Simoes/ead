@@ -1,0 +1,6 @@
+export { InstructorDashboardPage } from './InstructorDashboardPage'
+export { CourseFormPage } from './CourseFormPage'
+export { ModulesManagementPage } from './ModulesManagementPage'
+export { AssessmentsManagementPage } from './AssessmentsManagementPage'
+export { GradingPage } from './GradingPage'
+export { CourseStudentsPage } from './CourseStudentsPage'
