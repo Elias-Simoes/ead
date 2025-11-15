@@ -72,14 +72,26 @@ export class ModuleService {
   /**
    * Get modules by course
    */
-  async getModulesByCourse(courseId: string): Promise<Module[]> {
+  async getModulesByCourse(courseId: string): Promise<any[]> {
     try {
-      const result = await pool.query(
+      // Get modules
+      const modulesResult = await pool.query(
         'SELECT * FROM modules WHERE course_id = $1 ORDER BY order_index ASC',
         [courseId]
       );
 
-      return result.rows;
+      const modules = modulesResult.rows;
+
+      // Get lessons for each module
+      for (const module of modules) {
+        const lessonsResult = await pool.query(
+          'SELECT * FROM lessons WHERE module_id = $1 ORDER BY order_index ASC',
+          [module.id]
+        );
+        module.lessons = lessonsResult.rows;
+      }
+
+      return modules;
     } catch (error) {
       logger.error('Failed to get modules', error);
       throw error;
