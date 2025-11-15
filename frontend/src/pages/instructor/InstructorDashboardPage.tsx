@@ -31,8 +31,30 @@ export const InstructorDashboardPage = () => {
   const fetchDashboard = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/instructor/dashboard')
-      setStats(response.data.data || response.data)
+      // Buscar cursos do instrutor
+      const coursesResponse = await api.get('/courses/instructor/my-courses')
+      const courses = coursesResponse.data.data.courses || []
+      
+      // Calcular estatísticas
+      const totalCourses = courses.length
+      const totalStudents = courses.reduce((sum: number, course: any) => sum + (course.studentsCount || 0), 0)
+      const averageCompletionRate = courses.length > 0
+        ? Math.round(courses.reduce((sum: number, course: any) => sum + (course.completionRate || 0), 0) / courses.length)
+        : 0
+      
+      setStats({
+        totalCourses,
+        totalStudents,
+        averageCompletionRate,
+        pendingGradings: 0, // TODO: Implementar busca de avaliações pendentes
+        courses: courses.map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          status: course.status,
+          studentsCount: course.studentsCount || 0,
+          completionRate: course.completionRate || 0
+        }))
+      })
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Erro ao carregar dashboard')
     } finally {
@@ -114,7 +136,7 @@ export const InstructorDashboardPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm">Avaliações Pendentes</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.pendingGradings || stats?.pendingAssessments || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{stats?.pendingGradings || 0}</p>
               </div>
               <div className="bg-yellow-100 rounded-full p-3">
                 <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,36 +207,36 @@ export const InstructorDashboardPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {stats.courses.map((course) => (
-                    <tr key={course.courseId || course.id}>
+                    <tr key={course.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{course.courseTitle || course.title}</div>
+                        <div className="text-sm font-medium text-gray-900">{course.title}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          (course.courseStatus || course.status) === 'published' ? 'bg-green-100 text-green-800' :
-                          (course.courseStatus || course.status) === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                          course.status === 'published' ? 'bg-green-100 text-green-800' :
+                          course.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {(course.courseStatus || course.status) === 'published' ? 'Publicado' :
-                           (course.courseStatus || course.status) === 'pending_approval' ? 'Em Aprovação' :
+                          {course.status === 'published' ? 'Publicado' :
+                           course.status === 'pending_approval' ? 'Em Aprovação' :
                            'Rascunho'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {course.totalStudents || course.studentsCount || 0}
+                        {course.studentsCount || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {course.averageProgress || course.completionRate || 0}%
+                        {course.completionRate || 0}%
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
-                          to={`/instructor/courses/${course.courseId || course.id}`}
+                          to={`/instructor/courses/${course.id}`}
                           className="text-blue-600 hover:text-blue-900 mr-4"
                         >
                           Editar
                         </Link>
                         <Link
-                          to={`/instructor/courses/${course.courseId || course.id}/students`}
+                          to={`/instructor/courses/${course.id}/students`}
                           className="text-green-600 hover:text-green-900"
                         >
                           Ver Alunos

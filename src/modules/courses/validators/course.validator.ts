@@ -4,7 +4,7 @@ export const createCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(255),
     description: z.string().optional(),
-    cover_image: z.string().url().optional(),
+    cover_image: z.string().optional(), // Aceita key ou URL
     category: z.string().max(100).optional(),
     workload: z.number().int().positive(),
   }),
@@ -17,7 +17,7 @@ export const updateCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(255).optional(),
     description: z.string().optional(),
-    cover_image: z.string().url().optional(),
+    cover_image: z.string().optional(), // Aceita key ou URL
     category: z.string().max(100).optional(),
     workload: z.number().int().positive().optional(),
   }),

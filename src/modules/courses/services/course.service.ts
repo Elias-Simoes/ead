@@ -2,6 +2,7 @@ import { pool } from '@config/database';
 import { logger } from '@shared/utils/logger';
 import { emailQueueService } from '@modules/notifications/services/email-queue.service';
 import { cacheService } from '@shared/services/cache.service';
+import { storageService } from '@shared/services/storage.service';
 
 export interface CreateCourseData {
   title: string;
@@ -45,6 +46,18 @@ export class CourseService {
   };
 
   /**
+   * Enrich course with full cover image URL
+   */
+  private enrichCourseWithUrls(course: any): any {
+    if (!course) return null;
+    
+    return {
+      ...course,
+      cover_image_url: storageService.buildPublicUrl(course.cover_image),
+    };
+  }
+
+  /**
    * Create a new course (draft status)
    */
   async createCourse(data: CreateCourseData): Promise<Course> {
@@ -84,7 +97,7 @@ export class CourseService {
     try {
       const cacheKey = cacheService.generateKey(this.CACHE_KEYS.COURSE, courseId);
 
-      return await cacheService.getOrSet(
+      const course = await cacheService.getOrSet(
         cacheKey,
         async () => {
           const result = await pool.query(
@@ -100,6 +113,8 @@ export class CourseService {
         },
         this.CACHE_TTL.LONG // 1 hour
       );
+
+      return this.enrichCourseWithUrls(course);
     } catch (error) {
       logger.error('Failed to get course', error);
       throw error;
@@ -113,7 +128,7 @@ export class CourseService {
     try {
       const cacheKey = cacheService.generateKey(this.CACHE_KEYS.COURSE_DETAILS, courseId);
 
-      return await cacheService.getOrSet(
+      const courseWithDetails = await cacheService.getOrSet(
         cacheKey,
         async () => {
           const client = await pool.connect();
@@ -162,6 +177,8 @@ export class CourseService {
         },
         this.CACHE_TTL.LONG // 1 hour
       );
+
+      return this.enrichCourseWithUrls(courseWithDetails);
     } catch (error) {
       logger.error('Failed to get course with details', error);
       throw error;
@@ -284,8 +301,11 @@ export class CourseService {
         [instructorId, limit, offset]
       );
 
+      // Enrich courses with URLs
+      const enrichedCourses = result.rows.map(course => this.enrichCourseWithUrls(course));
+
       return {
-        courses: result.rows,
+        courses: enrichedCourses,
         total,
         page,
         totalPages: Math.ceil(total / limit),

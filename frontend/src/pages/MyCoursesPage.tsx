@@ -30,8 +30,8 @@ export const MyCoursesPage = () => {
       
       // Instrutor: buscar cursos criados
       if (user.role === 'instructor') {
-        console.log('Calling /instructor/courses')
-        const response = await api.get<{ data: { courses: Course[] } }>('/instructor/courses')
+        console.log('Calling /courses/instructor/my-courses')
+        const response = await api.get<{ data: { courses: Course[] } }>('/courses/instructor/my-courses')
         console.log('Response:', response.data)
         setCourses(response.data.data.courses || [])
       } 

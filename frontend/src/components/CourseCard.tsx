@@ -14,9 +14,9 @@ export const CourseCard = ({ course, progress, showProgress = false }: CourseCar
       className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
     >
       <div className="relative h-48 bg-gray-200">
-        {course.coverImage ? (
+        {((course as any).cover_image_url || course.coverImage) ? (
           <img
-            src={course.coverImage}
+            src={(course as any).cover_image_url || course.coverImage}
             alt={course.title}
             className="w-full h-full object-cover"
           />

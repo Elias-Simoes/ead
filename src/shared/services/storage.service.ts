@@ -173,6 +173,21 @@ export class StorageService {
   }
 
   /**
+   * Build public URL from key (public method)
+   */
+  buildPublicUrl(key: string | null | undefined): string | null {
+    if (!key) return null;
+    
+    // Se já for uma URL completa, retorna como está
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      return key;
+    }
+    
+    // Caso contrário, constrói a URL
+    return this.getPublicUrl(key);
+  }
+
+  /**
    * Validate content type
    */
   private validateContentType(contentType: string): void {

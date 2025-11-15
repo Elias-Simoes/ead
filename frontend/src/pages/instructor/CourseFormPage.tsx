@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Navbar } from '../../components/Navbar'
 import api from '../../services/api'
-import { Course } from '../../types'
 
 export const CourseFormPage = () => {
   const { id } = useParams()
@@ -30,17 +29,41 @@ export const CourseFormPage = () => {
 
   const fetchCourse = async () => {
     try {
-      const response = await api.get<{ data: Course }>(`/courses/${id}`)
-      const course = response.data.data
+      const response = await api.get<{ data: { course: any } }>(`/courses/${id}`)
+      // A API retorna { data: { course: {...} } }
+      const course = response.data.data.course
+      
+      console.log('Course data:', course)
+      
+      // cover_image é a key, cover_image_url é a URL completa
+      const coverImageKey = course.cover_image || ''
+      const coverImageUrl = course.cover_image_url || ''
+      
+      console.log('Cover image key:', coverImageKey)
+      console.log('Cover image URL:', coverImageUrl)
+      
       setFormData({
-        title: course.title,
-        description: course.description,
-        category: course.category,
-        workload: course.workload,
-        coverImage: course.coverImage,
+        title: course.title || '',
+        description: course.description || '',
+        category: course.category || '',
+        workload: course.workload || 0,
+        coverImage: coverImageKey, // Salva a key no formData
       })
-      setImagePreview(course.coverImage)
+      
+      // Usa a URL completa para preview
+      if (coverImageUrl) {
+        console.log('Setting image preview:', coverImageUrl)
+        setImagePreview(coverImageUrl)
+      } else if (coverImageKey) {
+        // Fallback: se não tiver URL mas tiver key, tenta construir manualmente
+        console.log('No URL, trying to build from key')
+        // Se a key já for uma URL completa (dados antigos), usa ela
+        if (coverImageKey.startsWith('http')) {
+          setImagePreview(coverImageKey)
+        }
+      }
     } catch (err: any) {
+      console.error('Error fetching course:', err)
       setError(err.response?.data?.error?.message || 'Erro ao carregar curso')
     }
   }
@@ -76,7 +99,8 @@ export const CourseFormPage = () => {
           const uploadResponse = await api.post('/upload', imageFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
           })
-          coverImageUrl = uploadResponse.data.data.url
+          // Usar a key em vez da URL completa
+          coverImageUrl = uploadResponse.data.data.key
         } catch (uploadErr: any) {
           console.error('Erro ao fazer upload da imagem:', uploadErr)
           setError('Erro ao fazer upload da imagem. Tente novamente.')
@@ -90,7 +114,7 @@ export const CourseFormPage = () => {
         description: formData.description,
         category: formData.category,
         workload: formData.workload,
-        coverImage: coverImageUrl || null,
+        cover_image: coverImageUrl || null,
       }
 
       if (isEdit) {
