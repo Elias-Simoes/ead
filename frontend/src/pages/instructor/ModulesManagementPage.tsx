@@ -54,7 +54,7 @@ export const ModulesManagementPage = () => {
     e.preventDefault()
     try {
       if (editingModule) {
-        await api.patch(`/modules/${editingModule.id}`, moduleForm)
+        await api.patch(`/courses/modules/${editingModule.id}`, moduleForm)
       } else {
         await api.post(`/courses/${id}/modules`, moduleForm)
       }
@@ -71,9 +71,9 @@ export const ModulesManagementPage = () => {
     e.preventDefault()
     try {
       if (editingLesson) {
-        await api.patch(`/lessons/${editingLesson.id}`, lessonForm)
+        await api.patch(`/courses/lessons/${editingLesson.id}`, lessonForm)
       } else {
-        await api.post(`/modules/${selectedModuleId}/lessons`, lessonForm)
+        await api.post(`/courses/modules/${selectedModuleId}/lessons`, lessonForm)
       }
       setShowLessonForm(false)
       setEditingLesson(null)
@@ -88,7 +88,7 @@ export const ModulesManagementPage = () => {
   const handleDeleteModule = async (moduleId: string) => {
     if (!confirm('Tem certeza que deseja excluir este módulo?')) return
     try {
-      await api.delete(`/modules/${moduleId}`)
+      await api.delete(`/courses/modules/${moduleId}`)
       fetchCourseAndModules()
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Erro ao excluir módulo')
@@ -98,7 +98,7 @@ export const ModulesManagementPage = () => {
   const handleDeleteLesson = async (lessonId: string) => {
     if (!confirm('Tem certeza que deseja excluir esta aula?')) return
     try {
-      await api.delete(`/lessons/${lessonId}`)
+      await api.delete(`/courses/lessons/${lessonId}`)
       fetchCourseAndModules()
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Erro ao excluir aula')
