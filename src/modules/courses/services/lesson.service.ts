@@ -5,8 +5,16 @@ export interface CreateLessonData {
   module_id: string;
   title: string;
   description?: string;
-  type: 'video' | 'pdf' | 'text' | 'external_link';
-  content: string;
+  // Old format (for backward compatibility)
+  type?: 'video' | 'pdf' | 'text' | 'external_link';
+  content?: string;
+  // New format (multiple content types)
+  video_url?: string;
+  video_file_key?: string;
+  text_content?: string;
+  pdf_file_key?: string;
+  pdf_url?: string;
+  external_link?: string;
   duration?: number;
   order_index: number;
 }
@@ -14,8 +22,16 @@ export interface CreateLessonData {
 export interface UpdateLessonData {
   title?: string;
   description?: string;
+  // Old format (for backward compatibility)
   type?: 'video' | 'pdf' | 'text' | 'external_link';
   content?: string;
+  // New format (multiple content types)
+  video_url?: string;
+  video_file_key?: string;
+  text_content?: string;
+  pdf_file_key?: string;
+  pdf_url?: string;
+  external_link?: string;
   duration?: number;
   order_index?: number;
 }
@@ -25,8 +41,16 @@ export interface Lesson {
   module_id: string;
   title: string;
   description?: string;
-  type: string;
-  content: string;
+  // Old format fields
+  type?: string;
+  content?: string;
+  // New format fields
+  video_url?: string;
+  video_file_key?: string;
+  text_content?: string;
+  pdf_file_key?: string;
+  pdf_url?: string;
+  external_link?: string;
   duration?: number;
   order_index: number;
   created_at: Date;
@@ -39,17 +63,26 @@ export class LessonService {
   async createLesson(data: CreateLessonData): Promise<Lesson> {
     try {
       const result = await pool.query(
-        `INSERT INTO lessons (module_id, title, description, type, content, duration, order_index)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO lessons (
+          module_id, title, description, type, content, duration, order_index,
+          video_url, video_file_key, text_content, pdf_file_key, pdf_url, external_link
+        )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           data.module_id,
           data.title,
           data.description || null,
-          data.type,
-          data.content,
+          data.type || null,
+          data.content || null,
           data.duration || null,
           data.order_index,
+          data.video_url || null,
+          data.video_file_key || null,
+          data.text_content || null,
+          data.pdf_file_key || null,
+          data.pdf_url || null,
+          data.external_link || null,
         ]
       );
 
@@ -68,10 +101,14 @@ export class LessonService {
   /**
    * Get lesson by ID
    */
-  async getLessonById(lessonId: string): Promise<Lesson | null> {
+  async getLessonById(lessonId: string): Promise<any> {
     try {
       const result = await pool.query(
-        'SELECT * FROM lessons WHERE id = $1',
+        `SELECT l.*, c.instructor_id 
+         FROM lessons l
+         JOIN modules m ON l.module_id = m.id
+         JOIN courses c ON m.course_id = c.id
+         WHERE l.id = $1`,
         [lessonId]
       );
 
@@ -79,7 +116,12 @@ export class LessonService {
         return null;
       }
 
-      return result.rows[0];
+      const lesson = result.rows[0];
+
+      // text_content agora é uma string simples, não precisa de conversão
+      // Apenas retornar como está
+
+      return lesson;
     } catch (error) {
       logger.error('Failed to get lesson', error);
       throw error;
@@ -96,6 +138,7 @@ export class LessonService {
         [moduleId]
       );
 
+      // text_content agora é uma string simples, retornar como está
       return result.rows;
     } catch (error) {
       logger.error('Failed to get lessons', error);
@@ -127,6 +170,30 @@ export class LessonService {
       if (data.content !== undefined) {
         updates.push(`content = $${paramCount++}`);
         values.push(data.content);
+      }
+      if (data.video_url !== undefined) {
+        updates.push(`video_url = $${paramCount++}`);
+        values.push(data.video_url);
+      }
+      if (data.video_file_key !== undefined) {
+        updates.push(`video_file_key = $${paramCount++}`);
+        values.push(data.video_file_key);
+      }
+      if (data.text_content !== undefined) {
+        updates.push(`text_content = $${paramCount++}`);
+        values.push(data.text_content);
+      }
+      if (data.pdf_file_key !== undefined) {
+        updates.push(`pdf_file_key = $${paramCount++}`);
+        values.push(data.pdf_file_key);
+      }
+      if (data.pdf_url !== undefined) {
+        updates.push(`pdf_url = $${paramCount++}`);
+        values.push(data.pdf_url);
+      }
+      if (data.external_link !== undefined) {
+        updates.push(`external_link = $${paramCount++}`);
+        values.push(data.external_link);
       }
       if (data.duration !== undefined) {
         updates.push(`duration = $${paramCount++}`);
