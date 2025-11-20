@@ -117,6 +117,23 @@ export interface Answer {
   points?: number
 }
 
+export interface CreateQuestionData {
+  text: string
+  type: 'multiple_choice' | 'essay'
+  options?: string[]
+  correct_answer?: number
+  points: number
+  order_index: number
+}
+
+export interface UpdateQuestionData {
+  text?: string
+  options?: string[]
+  correct_answer?: number
+  points?: number
+  order_index?: number
+}
+
 // Certificate types
 export interface Certificate {
   id: string

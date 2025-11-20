@@ -15,6 +15,7 @@ import {
   InstructorDashboardPage,
   CourseFormPage,
   ModulesManagementPage,
+  LessonFormPage,
   AssessmentsManagementPage,
   GradingPage,
   CourseStudentsPage,
@@ -24,6 +25,7 @@ import {
   SubscriptionsManagementPage,
   ReportsPage,
 } from './pages'
+import AssessmentFormPage from './pages/instructor/AssessmentFormPage'
 
 function App() {
   return (
@@ -48,7 +50,11 @@ function App() {
             <Route path="/instructor/courses/new" element={<CourseFormPage />} />
             <Route path="/instructor/courses/:id" element={<CourseFormPage />} />
             <Route path="/instructor/courses/:id/modules" element={<ModulesManagementPage />} />
+            <Route path="/instructor/courses/:id/modules/:moduleId/lessons/new" element={<LessonFormPage />} />
+            <Route path="/instructor/courses/:id/modules/:moduleId/lessons/:lessonId" element={<LessonFormPage />} />
             <Route path="/instructor/courses/:id/assessments" element={<AssessmentsManagementPage />} />
+            <Route path="/instructor/courses/:courseId/assessments/new" element={<AssessmentFormPage />} />
+            <Route path="/instructor/courses/:courseId/assessments/:assessmentId/edit" element={<AssessmentFormPage />} />
             <Route path="/instructor/courses/:id/students" element={<CourseStudentsPage />} />
             <Route path="/instructor/assessments/pending" element={<GradingPage />} />
             

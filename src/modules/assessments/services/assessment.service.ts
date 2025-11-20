@@ -47,6 +47,33 @@ export interface Question {
   created_at: Date;
 }
 
+// Helper function to map database fields to camelCase
+function mapQuestionToResponse(question: any) {
+  return {
+    id: question.id,
+    assessmentId: question.assessment_id,
+    text: question.text,
+    type: question.type,
+    options: question.options,
+    correctAnswer: question.correct_answer,
+    points: question.points,
+    orderIndex: question.order_index,
+    createdAt: question.created_at,
+  };
+}
+
+function mapAssessmentToResponse(assessment: any, questions?: any[]) {
+  return {
+    id: assessment.id,
+    courseId: assessment.course_id,
+    title: assessment.title,
+    type: assessment.type,
+    passingScore: assessment.passing_score,
+    createdAt: assessment.created_at,
+    questions: questions || [],
+  };
+}
+
 export class AssessmentService {
   /**
    * Create a new assessment for a course
@@ -112,10 +139,8 @@ export class AssessmentService {
         [assessmentId]
       );
 
-      return {
-        ...assessmentResult.rows[0],
-        questions: questionsResult.rows,
-      };
+      const mappedQuestions = questionsResult.rows.map(mapQuestionToResponse);
+      return mapAssessmentToResponse(assessmentResult.rows[0], mappedQuestions);
     } catch (error) {
       logger.error('Failed to get assessment with questions', error);
       throw error;
@@ -142,7 +167,7 @@ export class AssessmentService {
   /**
    * Create a question for an assessment
    */
-  async createQuestion(data: CreateQuestionData): Promise<Question> {
+  async createQuestion(data: CreateQuestionData): Promise<any> {
     try {
       const result = await pool.query(
         `INSERT INTO questions (assessment_id, text, type, options, correct_answer, points, order_index)
@@ -164,7 +189,7 @@ export class AssessmentService {
         assessmentId: data.assessment_id,
       });
 
-      return result.rows[0];
+      return mapQuestionToResponse(result.rows[0]);
     } catch (error) {
       logger.error('Failed to create question', error);
       throw error;
@@ -195,7 +220,7 @@ export class AssessmentService {
   /**
    * Update a question
    */
-  async updateQuestion(questionId: string, data: UpdateQuestionData): Promise<Question> {
+  async updateQuestion(questionId: string, data: UpdateQuestionData): Promise<any> {
     try {
       const updates: string[] = [];
       const values: any[] = [];
@@ -242,7 +267,7 @@ export class AssessmentService {
 
       logger.info('Question updated', { questionId });
 
-      return result.rows[0];
+      return mapQuestionToResponse(result.rows[0]);
     } catch (error) {
       logger.error('Failed to update question', error);
       throw error;
@@ -325,6 +350,108 @@ export class AssessmentService {
       return result.rows[0].assessment_id;
     } catch (error) {
       logger.error('Failed to get assessment ID from question', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all assessments for a course with questions
+   */
+  async getCourseAssessments(courseId: string): Promise<any[]> {
+    try {
+      const assessmentsResult = await pool.query(
+        'SELECT * FROM assessments WHERE course_id = $1 ORDER BY created_at DESC',
+        [courseId]
+      );
+
+      const assessments = await Promise.all(
+        assessmentsResult.rows.map(async (assessment) => {
+          const questionsResult = await pool.query(
+            'SELECT * FROM questions WHERE assessment_id = $1 ORDER BY order_index ASC',
+            [assessment.id]
+          );
+
+          const mappedQuestions = questionsResult.rows.map(mapQuestionToResponse);
+          return mapAssessmentToResponse(assessment, mappedQuestions);
+        })
+      );
+
+      return assessments;
+    } catch (error) {
+      logger.error('Failed to get course assessments', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an assessment
+   */
+  async updateAssessment(assessmentId: string, data: { title?: string; passing_score?: number }): Promise<Assessment> {
+    try {
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      if (data.title !== undefined) {
+        updates.push(`title = $${paramCount++}`);
+        values.push(data.title);
+      }
+      if (data.passing_score !== undefined) {
+        updates.push(`passing_score = $${paramCount++}`);
+        values.push(data.passing_score);
+      }
+
+      if (updates.length === 0) {
+        throw new Error('NO_UPDATES_PROVIDED');
+      }
+
+      values.push(assessmentId);
+
+      const result = await pool.query(
+        `UPDATE assessments 
+         SET ${updates.join(', ')}
+         WHERE id = $${paramCount}
+         RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('ASSESSMENT_NOT_FOUND');
+      }
+
+      logger.info('Assessment updated', { assessmentId });
+
+      return result.rows[0];
+    } catch (error) {
+      logger.error('Failed to update assessment', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an assessment and all its questions
+   */
+  async deleteAssessment(assessmentId: string): Promise<void> {
+    try {
+      // Delete all questions first
+      await pool.query(
+        'DELETE FROM questions WHERE assessment_id = $1',
+        [assessmentId]
+      );
+
+      // Delete the assessment
+      const result = await pool.query(
+        'DELETE FROM assessments WHERE id = $1',
+        [assessmentId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error('ASSESSMENT_NOT_FOUND');
+      }
+
+      logger.info('Assessment deleted', { assessmentId });
+    } catch (error) {
+      logger.error('Failed to delete assessment', error);
       throw error;
     }
   }

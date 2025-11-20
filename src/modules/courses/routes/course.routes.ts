@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { courseController } from '../controllers/course.controller';
 import { moduleController } from '../controllers/module.controller';
 import { lessonController } from '../controllers/lesson.controller';
+import { LessonResourceController } from '../controllers/lesson-resource.controller';
 import { authenticate, authorize } from '@shared/middleware/auth.middleware';
 import { validate } from '@shared/middleware/validate.middleware';
 import {
@@ -27,6 +28,7 @@ import {
 } from '../validators/lesson.validator';
 
 const router = Router();
+const lessonResourceController = new LessonResourceController();
 
 /**
  * @route   GET /api/courses
@@ -170,6 +172,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/modules/:id
+ * @desc    Get a module by ID
+ * @access  Instructor (owner only)
+ */
+router.get(
+  '/modules/:id',
+  authenticate,
+  authorize('instructor'),
+  moduleController.getModuleById.bind(moduleController)
+);
+
+/**
  * @route   POST /api/courses/:id/modules
  * @desc    Add a module to a course
  * @access  Instructor (owner only)
@@ -211,6 +225,18 @@ router.delete(
 // Lesson routes
 
 /**
+ * @route   GET /api/lessons/:id
+ * @desc    Get a lesson by ID
+ * @access  Instructor (owner only)
+ */
+router.get(
+  '/lessons/:id',
+  authenticate,
+  authorize('instructor'),
+  lessonController.getLessonById.bind(lessonController)
+);
+
+/**
  * @route   POST /api/modules/:id/lessons
  * @desc    Add a lesson to a module
  * @access  Instructor (owner only)
@@ -247,6 +273,66 @@ router.delete(
   authorize('instructor'),
   validate(deleteLessonSchema),
   lessonController.deleteLesson.bind(lessonController)
+);
+
+// Lesson Resource routes
+
+/**
+ * @route   POST /api/lessons/:lessonId/resources
+ * @desc    Add resources to a lesson
+ * @access  Instructor (owner only)
+ */
+router.post(
+  '/lessons/:lessonId/resources',
+  authenticate,
+  authorize('instructor'),
+  lessonResourceController.createResources.bind(lessonResourceController)
+);
+
+/**
+ * @route   GET /api/lessons/:lessonId/resources
+ * @desc    Get all resources for a lesson
+ * @access  Authenticated users
+ */
+router.get(
+  '/lessons/:lessonId/resources',
+  authenticate,
+  lessonResourceController.getResourcesByLessonId.bind(lessonResourceController)
+);
+
+/**
+ * @route   GET /api/resources/:resourceId
+ * @desc    Get a resource by ID
+ * @access  Authenticated users
+ */
+router.get(
+  '/resources/:resourceId',
+  authenticate,
+  lessonResourceController.getResourceById.bind(lessonResourceController)
+);
+
+/**
+ * @route   PATCH /api/resources/:resourceId
+ * @desc    Update a resource
+ * @access  Instructor (owner only)
+ */
+router.patch(
+  '/resources/:resourceId',
+  authenticate,
+  authorize('instructor'),
+  lessonResourceController.updateResource.bind(lessonResourceController)
+);
+
+/**
+ * @route   DELETE /api/resources/:resourceId
+ * @desc    Delete a resource
+ * @access  Instructor (owner only)
+ */
+router.delete(
+  '/resources/:resourceId',
+  authenticate,
+  authorize('instructor'),
+  lessonResourceController.deleteResource.bind(lessonResourceController)
 );
 
 export default router;

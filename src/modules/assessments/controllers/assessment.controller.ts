@@ -51,7 +51,7 @@ export class AssessmentController {
 
       res.status(201).json({
         message: 'Assessment created successfully',
-        data: { assessment },
+        data: assessment,
       });
     } catch (error) {
       logger.error('Failed to create assessment', error);
@@ -142,7 +142,7 @@ export class AssessmentController {
 
       res.status(201).json({
         message: 'Question created successfully',
-        data: { question },
+        data: question,
       });
     } catch (error) {
       logger.error('Failed to create question', error);
@@ -252,6 +252,218 @@ export class AssessmentController {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to update question',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
+   * Get all assessments for a course (instructor only)
+   * GET /api/courses/:id/assessments
+   */
+  async getCourseAssessments(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: courseId } = req.params;
+      const instructorId = req.user!.userId;
+
+      // Check if instructor owns the course
+      const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
+      if (!isOwner) {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to view assessments for this course',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      const assessments = await assessmentService.getCourseAssessments(courseId);
+
+      res.status(200).json({
+        data: assessments,
+      });
+    } catch (error) {
+      logger.error('Failed to get course assessments', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get course assessments',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
+   * Get a specific assessment with questions
+   * GET /api/assessments/:id
+   */
+  async getAssessment(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: assessmentId } = req.params;
+      const userId = req.user!.userId;
+      const userRole = req.user!.role;
+
+      const assessment = await assessmentService.getAssessmentWithQuestions(assessmentId);
+
+      if (!assessment) {
+        res.status(404).json({
+          error: {
+            code: 'ASSESSMENT_NOT_FOUND',
+            message: 'Assessment not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      // If instructor, check ownership
+      if (userRole === 'instructor') {
+        const isOwner = await courseService.isInstructorOwner(assessment.courseId, userId);
+        if (!isOwner) {
+          res.status(403).json({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You do not have permission to view this assessment',
+              timestamp: new Date().toISOString(),
+              path: req.path,
+            },
+          });
+          return;
+        }
+      }
+
+      res.status(200).json({
+        data: assessment,
+      });
+    } catch (error) {
+      logger.error('Failed to get assessment', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get assessment',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
+   * Update an assessment (instructor only)
+   * PATCH /api/assessments/:id
+   */
+  async updateAssessment(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: assessmentId } = req.params;
+      const { title, passing_score } = req.body;
+      const instructorId = req.user!.userId;
+
+      // Get course ID from assessment
+      const courseId = await assessmentService.getCourseIdByAssessmentId(assessmentId);
+      if (!courseId) {
+        res.status(404).json({
+          error: {
+            code: 'ASSESSMENT_NOT_FOUND',
+            message: 'Assessment not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      // Check if instructor owns the course
+      const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
+      if (!isOwner) {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to update this assessment',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      const assessment = await assessmentService.updateAssessment(assessmentId, {
+        title,
+        passing_score,
+      });
+
+      res.status(200).json({
+        message: 'Assessment updated successfully',
+        data: assessment,
+      });
+    } catch (error) {
+      logger.error('Failed to update assessment', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update assessment',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
+   * Delete an assessment (instructor only)
+   * DELETE /api/assessments/:id
+   */
+  async deleteAssessment(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: assessmentId } = req.params;
+      const instructorId = req.user!.userId;
+
+      // Get course ID from assessment
+      const courseId = await assessmentService.getCourseIdByAssessmentId(assessmentId);
+      if (!courseId) {
+        res.status(404).json({
+          error: {
+            code: 'ASSESSMENT_NOT_FOUND',
+            message: 'Assessment not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      // Check if instructor owns the course
+      const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
+      if (!isOwner) {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to delete this assessment',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      await assessmentService.deleteAssessment(assessmentId);
+
+      res.status(200).json({
+        message: 'Assessment deleted successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to delete assessment', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to delete assessment',
           timestamp: new Date().toISOString(),
           path: req.path,
         },

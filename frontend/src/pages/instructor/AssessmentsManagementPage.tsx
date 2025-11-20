@@ -139,7 +139,7 @@ export const AssessmentsManagementPage = () => {
 
         <div className="mb-6">
           <button
-            onClick={() => setShowAssessmentForm(true)}
+            onClick={() => navigate(`/instructor/courses/${id}/assessments/new`)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium"
           >
             + Criar Avaliação
@@ -334,12 +334,20 @@ export const AssessmentsManagementPage = () => {
                       Nota Mínima: {assessment.passingScore}%
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteAssessment(assessment.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Excluir
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/instructor/courses/${id}/assessments/${assessment.id}/edit`)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAssessment(assessment.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
 
                 <button

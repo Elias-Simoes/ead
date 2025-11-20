@@ -12,22 +12,11 @@ export const ModulesManagementPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showModuleForm, setShowModuleForm] = useState(false)
-  const [showLessonForm, setShowLessonForm] = useState(false)
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
   const [editingModule, setEditingModule] = useState<Module | null>(null)
-  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
 
   const [moduleForm, setModuleForm] = useState({
     title: '',
     description: '',
-  })
-
-  const [lessonForm, setLessonForm] = useState({
-    title: '',
-    description: '',
-    type: 'video' as 'video' | 'pdf' | 'text' | 'external_link',
-    content: '',
-    duration: 0,
   })
 
   useEffect(() => {
@@ -67,23 +56,7 @@ export const ModulesManagementPage = () => {
     }
   }
 
-  const handleLessonSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      if (editingLesson) {
-        await api.patch(`/courses/lessons/${editingLesson.id}`, lessonForm)
-      } else {
-        await api.post(`/courses/modules/${selectedModuleId}/lessons`, lessonForm)
-      }
-      setShowLessonForm(false)
-      setEditingLesson(null)
-      setSelectedModuleId(null)
-      setLessonForm({ title: '', description: '', type: 'video', content: '', duration: 0 })
-      fetchCourseAndModules()
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Erro ao salvar aula')
-    }
-  }
+
 
   const handleDeleteModule = async (moduleId: string) => {
     if (!confirm('Tem certeza que deseja excluir este módulo?')) return
@@ -111,21 +84,12 @@ export const ModulesManagementPage = () => {
     setShowModuleForm(true)
   }
 
-  const openEditLesson = (lesson: Lesson) => {
-    setEditingLesson(lesson)
-    setLessonForm({
-      title: lesson.title,
-      description: lesson.description,
-      type: lesson.type,
-      content: lesson.content,
-      duration: lesson.duration || 0,
-    })
-    setShowLessonForm(true)
+  const openEditLesson = (lesson: Lesson, moduleId: string) => {
+    navigate(`/instructor/courses/${id}/modules/${moduleId}/lessons/${lesson.id}`)
   }
 
   const openAddLesson = (moduleId: string) => {
-    setSelectedModuleId(moduleId)
-    setShowLessonForm(true)
+    navigate(`/instructor/courses/${id}/modules/${moduleId}/lessons/new`)
   }
 
   if (loading) {
@@ -227,100 +191,7 @@ export const ModulesManagementPage = () => {
           </div>
         )}
 
-        {/* Lesson Form Modal */}
-        {showLessonForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">
-                {editingLesson ? 'Editar Aula' : 'Nova Aula'}
-              </h2>
-              <form onSubmit={handleLessonSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Título *
-                  </label>
-                  <input
-                    type="text"
-                    value={lessonForm.title}
-                    onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descrição
-                  </label>
-                  <textarea
-                    value={lessonForm.description}
-                    onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo *
-                  </label>
-                  <select
-                    value={lessonForm.type}
-                    onChange={(e) => setLessonForm({ ...lessonForm, type: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="video">Vídeo</option>
-                    <option value="pdf">PDF</option>
-                    <option value="text">Texto</option>
-                    <option value="external_link">Link Externo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Conteúdo (URL ou texto) *
-                  </label>
-                  <input
-                    type="text"
-                    value={lessonForm.content}
-                    onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={lessonForm.type === 'text' ? 'Digite o conteúdo' : 'Cole a URL'}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duração (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    value={lessonForm.duration}
-                    onChange={(e) => setLessonForm({ ...lessonForm, duration: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowLessonForm(false)
-                      setEditingLesson(null)
-                      setSelectedModuleId(null)
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-                  >
-                    Salvar
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+
 
         {/* Modules List */}
         <div className="space-y-6">
@@ -384,7 +255,7 @@ export const ModulesManagementPage = () => {
                         </div>
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => openEditLesson(lesson)}
+                            onClick={() => openEditLesson(lesson, module.id)}
                             className="text-blue-600 hover:text-blue-800 text-sm"
                           >
                             Editar

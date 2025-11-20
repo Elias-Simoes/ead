@@ -15,6 +15,7 @@ export {
   InstructorDashboardPage,
   CourseFormPage,
   ModulesManagementPage,
+  LessonFormPage,
   AssessmentsManagementPage,
   GradingPage,
   CourseStudentsPage,

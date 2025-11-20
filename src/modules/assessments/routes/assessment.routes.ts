@@ -23,6 +23,33 @@ router.post(
   assessmentController.createAssessment.bind(assessmentController)
 );
 
+router.get(
+  '/courses/:id/assessments',
+  authenticate,
+  authorize('instructor'),
+  assessmentController.getCourseAssessments.bind(assessmentController)
+);
+
+router.get(
+  '/assessments/:id',
+  authenticate,
+  assessmentController.getAssessment.bind(assessmentController)
+);
+
+router.patch(
+  '/assessments/:id',
+  authenticate,
+  authorize('instructor'),
+  assessmentController.updateAssessment.bind(assessmentController)
+);
+
+router.delete(
+  '/assessments/:id',
+  authenticate,
+  authorize('instructor'),
+  assessmentController.deleteAssessment.bind(assessmentController)
+);
+
 router.post(
   '/assessments/:id/questions',
   authenticate,
@@ -69,14 +96,7 @@ router.patch(
   instructorAssessmentController.gradeAssessment.bind(instructorAssessmentController)
 );
 
-// Student routes - View and submit assessments
-router.get(
-  '/assessments/:id',
-  authenticate,
-  authorize('student'),
-  studentAssessmentController.getAssessment.bind(studentAssessmentController)
-);
-
+// Student routes - Submit assessments
 router.post(
   '/assessments/:id/submit',
   authenticate,

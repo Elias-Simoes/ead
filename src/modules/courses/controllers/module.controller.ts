@@ -5,6 +5,59 @@ import { logger } from '@shared/utils/logger';
 
 export class ModuleController {
   /**
+   * Get module by ID
+   * GET /api/modules/:id
+   */
+  async getModuleById(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: moduleId } = req.params;
+      const instructorId = req.user!.userId;
+
+      // Get module
+      const module = await moduleService.getModuleById(moduleId);
+      if (!module) {
+        res.status(404).json({
+          error: {
+            code: 'MODULE_NOT_FOUND',
+            message: 'Module not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      // Check if instructor owns the course
+      const isOwner = await courseService.isInstructorOwner(module.course_id, instructorId);
+      if (!isOwner) {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to view this module',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        data: module,
+      });
+    } catch (error) {
+      logger.error('Failed to get module', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get module',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
    * Get all modules for a course
    * GET /api/courses/:id/modules
    */
