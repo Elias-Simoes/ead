@@ -15,12 +15,28 @@ import {
 const router = Router();
 
 // Instructor routes - Create and manage assessments
+router.get(
+  '/courses/:id/modules-without-assessments',
+  authenticate,
+  authorize('instructor'),
+  assessmentController.getModulesWithoutAssessments.bind(assessmentController)
+);
+
 router.post(
   '/courses/:id/assessments',
   authenticate,
   authorize('instructor'),
   validate(createAssessmentSchema),
   assessmentController.createAssessment.bind(assessmentController)
+);
+
+// Create assessment for a specific module
+router.post(
+  '/modules/:moduleId/assessments',
+  authenticate,
+  authorize('instructor'),
+  validate(createAssessmentSchema),
+  assessmentController.createAssessmentForModule.bind(assessmentController)
 );
 
 router.get(

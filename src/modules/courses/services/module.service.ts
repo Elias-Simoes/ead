@@ -152,6 +152,16 @@ export class ModuleService {
    */
   async deleteModule(moduleId: string): Promise<void> {
     try {
+      // Check if module has an assessment
+      const assessmentCheck = await pool.query(
+        'SELECT id FROM assessments WHERE module_id = $1',
+        [moduleId]
+      );
+
+      if (assessmentCheck.rows.length > 0) {
+        throw new Error('MODULE_HAS_ASSESSMENT');
+      }
+
       const result = await pool.query(
         'DELETE FROM modules WHERE id = $1 RETURNING id',
         [moduleId]

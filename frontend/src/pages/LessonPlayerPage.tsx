@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import api from '../services/api'
 import { Course, Lesson, Module } from '../types'
+import { useAuth } from '../contexts/AuthContext'
 
 export const LessonPlayerPage = () => {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [course, setCourse] = useState<Course | null>(null)
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
@@ -16,17 +18,20 @@ export const LessonPlayerPage = () => {
   useEffect(() => {
     if (courseId && lessonId) {
       fetchCourseContent()
-      fetchProgress()
+      // Only fetch progress for students
+      if (user?.role === 'student') {
+        fetchProgress()
+      }
     }
-  }, [courseId, lessonId])
+  }, [courseId, lessonId, user])
 
   const fetchCourseContent = async () => {
     try {
-      const response = await api.get<{ data: Course }>(`/courses/${courseId}/content`)
-      setCourse(response.data.data)
+      const response = await api.get<{ data: { course: Course } }>(`/courses/${courseId}`)
+      setCourse(response.data.data.course)
 
       // Find current lesson
-      const lesson = findLesson(response.data.data, lessonId!)
+      const lesson = findLesson(response.data.data.course, lessonId!)
       if (lesson) {
         setCurrentLesson(lesson)
         // Fetch lesson content
@@ -80,6 +85,11 @@ export const LessonPlayerPage = () => {
 
   const handleMarkComplete = async () => {
     if (!currentLesson) return
+    
+    // Only students can mark lessons as complete
+    if (user?.role !== 'student') {
+      return
+    }
 
     try {
       await api.post(`/courses/${courseId}/progress`, {

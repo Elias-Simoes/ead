@@ -28,10 +28,11 @@ export interface Course {
   title: string
   description: string
   coverImage: string
+  cover_image_url?: string // URL completa da imagem do R2
   category: string
   workload: number
   instructorId: string
-  instructor?: Instructor
+  instructor?: Instructor | { id: string; name: string; email: string }
   status: 'draft' | 'pending_approval' | 'published' | 'archived'
   version: number
   createdAt: Date
@@ -142,6 +143,7 @@ export interface Certificate {
   course?: Course
   verificationCode: string
   pdfUrl: string
+  finalGrade?: number
   issuedAt: Date
 }
 

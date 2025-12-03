@@ -6,10 +6,6 @@ export const createAssessmentSchema = z.object({
     type: z.enum(['multiple_choice', 'essay', 'mixed'], {
       errorMap: () => ({ message: 'Type must be multiple_choice, essay, or mixed' }),
     }),
-    passing_score: z
-      .number()
-      .min(0, 'Passing score must be at least 0')
-      .max(100, 'Passing score must be at most 100'),
   }),
 });
 

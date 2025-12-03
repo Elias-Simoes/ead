@@ -63,8 +63,12 @@ export class CourseController {
       }
 
       // Check access permissions
+      // Admins can see all courses
+      if (userRole === 'admin') {
+        // Admin has full access
+      }
       // Instructors can only see their own courses unless published
-      if (userRole === 'instructor' && course.instructor_id !== userId && course.status !== 'published') {
+      else if (userRole === 'instructor' && course.instructor_id !== userId && course.status !== 'published') {
         res.status(403).json({
           error: {
             code: 'FORBIDDEN',
@@ -75,9 +79,8 @@ export class CourseController {
         });
         return;
       }
-
       // Students can only see published courses
-      if (userRole === 'student' && course.status !== 'published') {
+      else if (userRole === 'student' && course.status !== 'published') {
         res.status(403).json({
           error: {
             code: 'FORBIDDEN',
@@ -350,6 +353,28 @@ export class CourseController {
           });
           return;
         }
+        if (error.message.startsWith('MODULES_WITHOUT_ASSESSMENT')) {
+          res.status(400).json({
+            error: {
+              code: 'MODULES_WITHOUT_ASSESSMENT',
+              message: error.message,
+              timestamp: new Date().toISOString(),
+              path: req.path,
+            },
+          });
+          return;
+        }
+        if (error.message.startsWith('ASSESSMENTS_WITHOUT_QUESTIONS')) {
+          res.status(400).json({
+            error: {
+              code: 'ASSESSMENTS_WITHOUT_QUESTIONS',
+              message: error.message,
+              timestamp: new Date().toISOString(),
+              path: req.path,
+            },
+          });
+          return;
+        }
       }
 
       logger.error('Failed to submit course for approval', error);
@@ -513,6 +538,17 @@ export class CourseController {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
       const category = req.query.category as string | undefined;
       const search = req.query.search as string | undefined;
+      const status = req.query.status as string | undefined;
+
+      // If status is pending_approval, redirect to getPendingCourses
+      if (status === 'pending_approval') {
+        const result = await courseService.getPendingCourses(page, limit);
+        res.status(200).json({
+          message: 'Pending courses retrieved successfully',
+          data: result,
+        });
+        return;
+      }
 
       const result = await courseService.getPublishedCourses(page, limit, category, search);
 

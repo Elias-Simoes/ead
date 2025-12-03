@@ -7,12 +7,53 @@ export class AssessmentController {
   /**
    * Create a new assessment for a course (instructor only)
    * POST /api/courses/:id/assessments
+   * 
+   * @deprecated This method is obsolete. Assessments are now created per module.
+   * Use createAssessmentForModule instead (POST /api/modules/:moduleId/assessments)
    */
   async createAssessment(req: Request, res: Response): Promise<void> {
+    res.status(400).json({
+      error: {
+        code: 'DEPRECATED_ENDPOINT',
+        message: 'This endpoint is deprecated. Assessments must be created per module. Use POST /api/modules/:moduleId/assessments instead.',
+        timestamp: new Date().toISOString(),
+        path: req.path,
+      },
+    });
+  }
+
+  /**
+   * Create a new assessment for a module (instructor only)
+   * POST /api/modules/:moduleId/assessments
+   */
+  async createAssessmentForModule(req: Request, res: Response): Promise<void> {
     try {
-      const { id: courseId } = req.params;
+      const { moduleId } = req.params;
       const { title, type, passing_score } = req.body;
       const instructorId = req.user!.userId;
+
+      logger.info('createAssessmentForModule called', { 
+        moduleId, 
+        title, 
+        type,
+        passing_score, 
+        instructorId,
+        body: req.body 
+      });
+
+      // Get course ID from module and verify ownership
+      const courseId = await assessmentService.getCourseIdByModuleId(moduleId);
+      if (!courseId) {
+        res.status(404).json({
+          error: {
+            code: 'MODULE_NOT_FOUND',
+            message: 'Module not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
 
       // Check if instructor owns the course
       const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
@@ -20,7 +61,7 @@ export class AssessmentController {
         res.status(403).json({
           error: {
             code: 'FORBIDDEN',
-            message: 'You do not have permission to create assessments for this course',
+            message: 'You do not have permission to create assessments for this module',
             timestamp: new Date().toISOString(),
             path: req.path,
           },
@@ -28,37 +69,56 @@ export class AssessmentController {
         return;
       }
 
-      // Check if course exists
-      const course = await courseService.getCourseById(courseId);
-      if (!course) {
-        res.status(404).json({
-          error: {
-            code: 'COURSE_NOT_FOUND',
-            message: 'Course not found',
-            timestamp: new Date().toISOString(),
-            path: req.path,
-          },
-        });
-        return;
-      }
-
+      // Create assessment
       const assessment = await assessmentService.createAssessment({
-        course_id: courseId,
+        module_id: moduleId,
         title,
         type,
         passing_score,
       });
 
+      logger.info('Assessment created successfully', { assessmentId: assessment.id });
+
       res.status(201).json({
         message: 'Assessment created successfully',
-        data: assessment,
+        data: { assessment },
       });
-    } catch (error) {
-      logger.error('Failed to create assessment', error);
+    } catch (error: any) {
+      logger.error('Failed to create assessment for module', { 
+        error: error.message,
+        stack: error.stack,
+        moduleId: req.params.moduleId,
+        body: req.body
+      });
+      
+      if (error.message === 'MODULE_ALREADY_HAS_ASSESSMENT') {
+        res.status(400).json({
+          error: {
+            code: 'MODULE_ALREADY_HAS_ASSESSMENT',
+            message: 'This module already has an assessment',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      if (error.message === 'MODULE_NOT_FOUND') {
+        res.status(404).json({
+          error: {
+            code: 'MODULE_NOT_FOUND',
+            message: 'Module not found',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+      
       res.status(500).json({
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to create assessment',
+          message: error.message || 'Failed to create assessment for module',
           timestamp: new Date().toISOString(),
           path: req.path,
         },
@@ -130,7 +190,7 @@ export class AssessmentController {
         }
       }
 
-      const question = await assessmentService.createQuestion({
+      const question = await assessmentService.createQuestionWithRecalculation({
         assessment_id: assessmentId,
         text,
         type,
@@ -268,8 +328,12 @@ export class AssessmentController {
       const { id: courseId } = req.params;
       const instructorId = req.user!.userId;
 
+      logger.info('getCourseAssessments called', { courseId, instructorId });
+
       // Check if instructor owns the course
       const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
+      logger.info('Ownership check result', { isOwner });
+      
       if (!isOwner) {
         res.status(403).json({
           error: {
@@ -283,6 +347,7 @@ export class AssessmentController {
       }
 
       const assessments = await assessmentService.getCourseAssessments(courseId);
+      logger.info('Assessments retrieved', { count: assessments.length, assessments });
 
       res.status(200).json({
         data: assessments,
@@ -326,7 +391,21 @@ export class AssessmentController {
 
       // If instructor, check ownership
       if (userRole === 'instructor') {
-        const isOwner = await courseService.isInstructorOwner(assessment.courseId, userId);
+        // Get course ID from assessment
+        const courseId = await assessmentService.getCourseIdByAssessmentId(assessmentId);
+        if (!courseId) {
+          res.status(404).json({
+            error: {
+              code: 'COURSE_NOT_FOUND',
+              message: 'Course not found for this assessment',
+              timestamp: new Date().toISOString(),
+              path: req.path,
+            },
+          });
+          return;
+        }
+        
+        const isOwner = await courseService.isInstructorOwner(courseId, userId);
         if (!isOwner) {
           res.status(403).json({
             error: {
@@ -363,7 +442,7 @@ export class AssessmentController {
   async updateAssessment(req: Request, res: Response): Promise<void> {
     try {
       const { id: assessmentId } = req.params;
-      const { title, passing_score } = req.body;
+      const { title } = req.body;
       const instructorId = req.user!.userId;
 
       // Get course ID from assessment
@@ -396,7 +475,6 @@ export class AssessmentController {
 
       const assessment = await assessmentService.updateAssessment(assessmentId, {
         title,
-        passing_score,
       });
 
       res.status(200).json({
@@ -522,7 +600,7 @@ export class AssessmentController {
         return;
       }
 
-      await assessmentService.deleteQuestion(questionId);
+      await assessmentService.deleteQuestionWithRecalculation(questionId);
 
       res.status(200).json({
         message: 'Question deleted successfully',
@@ -545,6 +623,48 @@ export class AssessmentController {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to delete question',
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        },
+      });
+    }
+  }
+
+  /**
+   * Get modules without assessments for a course
+   * GET /api/courses/:id/modules-without-assessments
+   */
+  async getModulesWithoutAssessments(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: courseId } = req.params;
+      const instructorId = req.user!.userId;
+
+      // Check if instructor owns the course
+      const isOwner = await courseService.isInstructorOwner(courseId, instructorId);
+      if (!isOwner) {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to view this course',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
+      const modules = await assessmentService.getModulesWithoutAssessments(courseId);
+
+      res.status(200).json({
+        message: 'Modules without assessments retrieved successfully',
+        data: { modules },
+      });
+    } catch (error) {
+      logger.error('Failed to get modules without assessments', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get modules without assessments',
           timestamp: new Date().toISOString(),
           path: req.path,
         },

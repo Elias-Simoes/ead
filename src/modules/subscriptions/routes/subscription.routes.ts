@@ -36,4 +36,10 @@ router.post(
   subscriptionController.reactivateSubscription.bind(subscriptionController)
 );
 
+router.post(
+  '/renew',
+  authorize(['student']),
+  subscriptionController.renewSubscription.bind(subscriptionController)
+);
+
 export default router;

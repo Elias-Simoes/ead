@@ -26,6 +26,9 @@ import {
   ReportsPage,
 } from './pages'
 import AssessmentFormPage from './pages/instructor/AssessmentFormPage'
+import { SubscriptionRenewPage } from './pages/SubscriptionRenewPage'
+import { SubscriptionSuccessPage } from './pages/SubscriptionSuccessPage'
+import { SubscriptionCancelPage } from './pages/SubscriptionCancelPage'
 
 function App() {
   return (
@@ -43,6 +46,9 @@ function App() {
             <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonPlayerPage />} />
             <Route path="/my-courses" element={<MyCoursesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/subscription/renew" element={<SubscriptionRenewPage />} />
+            <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
+            <Route path="/subscription/cancel" element={<SubscriptionCancelPage />} />
             <Route path="/certificates" element={<CertificatesPage />} />
             
             {/* Instructor Routes */}

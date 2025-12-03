@@ -6,6 +6,8 @@ interface User {
   email: string
   name: string
   role: 'admin' | 'instructor' | 'student'
+  subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'cancelled'
+  subscriptionExpiresAt?: string
 }
 
 interface AuthState {
@@ -26,10 +28,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', { email, password })
-      const { tokens, user } = response.data.data
+      const { tokens } = response.data.data
 
       localStorage.setItem('accessToken', tokens.accessToken)
       localStorage.setItem('refreshToken', tokens.refreshToken)
+
+      // Buscar dados completos do usuário incluindo informações de assinatura
+      const meResponse = await api.get('/auth/me')
+      const user = meResponse.data
 
       set({ user, isAuthenticated: true })
       return user
@@ -53,10 +59,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         password,
         gdprConsent,
       })
-      const { tokens, user } = response.data.data
+      const { tokens } = response.data.data
 
       localStorage.setItem('accessToken', tokens.accessToken)
       localStorage.setItem('refreshToken', tokens.refreshToken)
+
+      // Buscar dados completos do usuário incluindo informações de assinatura
+      const meResponse = await api.get('/auth/me')
+      const user = meResponse.data
 
       set({ user, isAuthenticated: true })
     } catch (error) {

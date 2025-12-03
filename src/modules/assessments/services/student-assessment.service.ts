@@ -28,7 +28,7 @@ export interface StudentAssessment {
 
 export class StudentAssessmentService {
   /**
-   * Submit assessment answers
+   * Submit assessment answers (allows multiple attempts)
    */
   async submitAssessment(data: SubmitAssessmentData): Promise<StudentAssessment> {
     const client = await pool.connect();
@@ -36,15 +36,19 @@ export class StudentAssessmentService {
     try {
       await client.query('BEGIN');
 
-      // Check if student has already submitted this assessment
-      const existingSubmission = await client.query(
-        'SELECT id FROM student_assessments WHERE student_id = $1 AND assessment_id = $2',
+      // Mark all previous attempts as not latest
+      await client.query(
+        'UPDATE student_assessments SET is_latest = false WHERE student_id = $1 AND assessment_id = $2',
         [data.student_id, data.assessment_id]
       );
 
-      if (existingSubmission.rows.length > 0) {
-        throw new Error('ASSESSMENT_ALREADY_SUBMITTED');
-      }
+      // Get attempt number
+      const attemptResult = await client.query(
+        'SELECT COUNT(*) as count FROM student_assessments WHERE student_id = $1 AND assessment_id = $2',
+        [data.student_id, data.assessment_id]
+      );
+
+      const attemptNumber = parseInt(attemptResult.rows[0].count) + 1;
 
       // Get assessment with questions
       const assessment = await assessmentService.getAssessmentWithQuestions(data.assessment_id);
@@ -53,43 +57,60 @@ export class StudentAssessmentService {
         throw new Error('ASSESSMENT_NOT_FOUND');
       }
 
-      // Calculate score for multiple choice questions
-      let totalPoints = 0;
+      // Calculate score (assessment has 10 points total)
       let earnedPoints = 0;
-      let hasEssayQuestions = false;
-
       const answerMap = new Map(data.answers.map((a) => [a.question_id, a.answer]));
 
       for (const question of assessment.questions) {
-        totalPoints += question.points;
-
         const studentAnswer = answerMap.get(question.id);
 
-        if (question.type === 'multiple_choice' && question.correct_answer !== null) {
-          if (studentAnswer === question.correct_answer) {
+        if (question.type === 'multiple_choice' && question.correctAnswer !== null) {
+          if (studentAnswer === question.correctAnswer) {
             earnedPoints += question.points;
           }
-        } else if (question.type === 'essay') {
-          hasEssayQuestions = true;
         }
       }
 
-      // Calculate score (only for multiple choice, or null if has essay questions)
-      let score: number | null = null;
-      let status = 'pending';
-
-      if (!hasEssayQuestions && totalPoints > 0) {
-        score = (earnedPoints / totalPoints) * 100;
-        status = 'graded';
-      }
+      // Score is out of 10
+      const score = earnedPoints;
+      const status = 'graded';
 
       // Insert student assessment
       const result = await client.query(
-        `INSERT INTO student_assessments (student_id, assessment_id, answers, score, status)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO student_assessments (student_id, assessment_id, answers, score, status, attempt_number, is_latest, graded_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
          RETURNING *`,
-        [data.student_id, data.assessment_id, JSON.stringify(data.answers), score, status]
+        [data.student_id, data.assessment_id, JSON.stringify(data.answers), score, status, attemptNumber, true]
       );
+
+      // Get course ID from assessment to update final score
+      const courseIdResult = await client.query(
+        `SELECT m.course_id 
+         FROM assessments a
+         INNER JOIN modules m ON a.module_id = m.id
+         WHERE a.id = $1`,
+        [data.assessment_id]
+      );
+
+      if (courseIdResult.rows.length > 0) {
+        const courseId = courseIdResult.rows[0].course_id;
+        
+        // Calculate and update final grade
+        const finalGrade = await this.calculateFinalGrade(data.student_id, courseId);
+        
+        if (finalGrade !== null) {
+          await client.query(
+            'UPDATE student_progress SET final_score = $1 WHERE student_id = $2 AND course_id = $3',
+            [finalGrade, data.student_id, courseId]
+          );
+          
+          logger.info('Final grade updated', {
+            studentId: data.student_id,
+            courseId,
+            finalGrade,
+          });
+        }
+      }
 
       await client.query('COMMIT');
 
@@ -98,7 +119,7 @@ export class StudentAssessmentService {
         studentId: data.student_id,
         assessmentId: data.assessment_id,
         score,
-        status,
+        attemptNumber,
       });
 
       return result.rows[0];
@@ -184,14 +205,15 @@ export class StudentAssessmentService {
   async getPendingAssessments(instructorId: string): Promise<any[]> {
     try {
       const result = await pool.query(
-        `SELECT sa.*, a.title as assessment_title, c.title as course_title,
+        `SELECT sa.*, a.title as assessment_title, m.title as module_title, c.title as course_title,
                 u.name as student_name, u.email as student_email
          FROM student_assessments sa
          INNER JOIN assessments a ON sa.assessment_id = a.id
-         INNER JOIN courses c ON a.course_id = c.id
+         INNER JOIN modules m ON a.module_id = m.id
+         INNER JOIN courses c ON m.course_id = c.id
          INNER JOIN students s ON sa.student_id = s.id
          INNER JOIN users u ON s.id = u.id
-         WHERE c.instructor_id = $1 AND sa.status = 'pending'
+         WHERE c.instructor_id = $1 AND sa.status = 'pending' AND sa.is_latest = true
          ORDER BY sa.submitted_at ASC`,
         [instructorId]
       );
@@ -346,6 +368,95 @@ export class StudentAssessmentService {
       return finalScore;
     } catch (error) {
       logger.error('Failed to calculate final score in transaction', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get latest attempt for a student on an assessment
+   */
+  async getLatestAttempt(studentId: string, assessmentId: string): Promise<StudentAssessment | null> {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM student_assessments WHERE student_id = $1 AND assessment_id = $2 AND is_latest = true',
+        [studentId, assessmentId]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      logger.error('Failed to get latest attempt', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all attempts for a student on an assessment
+   */
+  async getAttempts(studentId: string, assessmentId: string): Promise<StudentAssessment[]> {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM student_assessments WHERE student_id = $1 AND assessment_id = $2 ORDER BY attempt_number DESC',
+        [studentId, assessmentId]
+      );
+
+      return result.rows;
+    } catch (error) {
+      logger.error('Failed to get attempts', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate final grade for a course (average of all module assessments)
+   */
+  async calculateFinalGrade(studentId: string, courseId: string): Promise<number | null> {
+    try {
+      // Get all modules for the course
+      const modulesResult = await pool.query(
+        'SELECT id FROM modules WHERE course_id = $1',
+        [courseId]
+      );
+
+      if (modulesResult.rows.length === 0) {
+        return null;
+      }
+
+      const moduleIds = modulesResult.rows.map((row) => row.id);
+
+      // Get assessments for each module
+      const assessmentsResult = await pool.query(
+        'SELECT id, module_id FROM assessments WHERE module_id = ANY($1)',
+        [moduleIds]
+      );
+
+      if (assessmentsResult.rows.length === 0) {
+        return null;
+      }
+
+      // Get latest attempt for each assessment
+      const scores: number[] = [];
+
+      for (const assessment of assessmentsResult.rows) {
+        const latestAttempt = await this.getLatestAttempt(studentId, assessment.id);
+
+        if (!latestAttempt || latestAttempt.score === null || latestAttempt.score === undefined) {
+          // Student hasn't completed this assessment yet
+          return null;
+        }
+
+        scores.push(latestAttempt.score);
+      }
+
+      // Calculate average (all assessments have equal weight of 10 points)
+      const finalGrade = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+
+      return finalGrade;
+    } catch (error) {
+      logger.error('Failed to calculate final grade', error);
       throw error;
     }
   }

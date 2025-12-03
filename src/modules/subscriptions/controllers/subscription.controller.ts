@@ -202,6 +202,78 @@ export class SubscriptionController {
       });
     }
   }
+
+  /**
+   * POST /api/subscriptions/renew
+   * Renew an expired or cancelled subscription
+   */
+  async renewSubscription(req: Request, res: Response): Promise<void> {
+    try {
+      const { planId } = req.body;
+      const studentId = req.user!.userId;
+      const { email } = req.user!;
+
+      if (!planId) {
+        res.status(400).json({
+          error: {
+            code: 'MISSING_PLAN_ID',
+            message: 'Plan ID is required',
+          },
+        });
+        return;
+      }
+
+      const result = await subscriptionService.renewSubscription({
+        studentId,
+        planId,
+        studentEmail: email,
+      });
+
+      res.status(200).json({
+        checkoutUrl: result.checkoutUrl,
+        sessionId: result.sessionId,
+      });
+    } catch (error: any) {
+      logger.error('Error renewing subscription', error);
+
+      if (error.message === 'STUDENT_NOT_FOUND') {
+        res.status(404).json({
+          error: {
+            code: 'STUDENT_NOT_FOUND',
+            message: 'Student not found',
+          },
+        });
+        return;
+      }
+
+      if (error.message === 'PLAN_NOT_FOUND_OR_INACTIVE') {
+        res.status(404).json({
+          error: {
+            code: 'PLAN_NOT_FOUND',
+            message: 'Plan not found or inactive',
+          },
+        });
+        return;
+      }
+
+      if (error.message === 'STUDENT_ALREADY_HAS_ACTIVE_SUBSCRIPTION') {
+        res.status(409).json({
+          error: {
+            code: 'ALREADY_SUBSCRIBED',
+            message: 'Student already has an active subscription',
+          },
+        });
+        return;
+      }
+
+      res.status(500).json({
+        error: {
+          code: 'SUBSCRIPTION_RENEWAL_FAILED',
+          message: 'Failed to renew subscription',
+        },
+      });
+    }
+  }
 }
 
 export const subscriptionController = new SubscriptionController();

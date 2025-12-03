@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Navbar } from '../../components/Navbar'
 import api from '../../services/api'
 import { Course } from '../../types'
 
 export default function CourseApprovalPage() {
-  const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -171,22 +170,30 @@ export default function CourseApprovalPage() {
                         </div>
                       </div>
                     </div>
-                    {course.coverImage && (
+                    {(course.coverImage || course.cover_image_url) && (
                       <img
-                        src={course.coverImage}
+                        src={course.cover_image_url || course.coverImage}
                         alt={course.title}
                         className="ml-6 w-32 h-20 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
                       />
                     )}
                   </div>
 
                   <div className="mt-6 flex items-center justify-between">
-                    <button
-                      onClick={() => navigate(`/courses/${course.id}`)}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    <Link
+                      to={`/courses/${course.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium inline-flex items-center"
                     >
-                      Ver Detalhes do Curso →
-                    </button>
+                      Ver Detalhes do Curso
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </Link>
                     <div className="flex space-x-3">
                       <button
                         onClick={() => openRejectModal(course)}

@@ -55,8 +55,9 @@ A Plataforma EAD é um sistema de ensino a distância que oferece cursos online 
 1. O Sistema DEVE permitir que o Instrutor crie um curso informando título, descrição, imagem de capa, carga horária e categoria
 2. O Sistema DEVE exigir que cada curso contenha no mínimo um módulo
 3. O Sistema DEVE exigir que cada módulo contenha no mínimo uma aula
-4. O Sistema DEVE permitir que o Instrutor adicione aulas nos formatos vídeo, PDF, texto ou link externo
-5. O Sistema DEVE permitir que o Instrutor crie avaliações do tipo múltipla escolha ou dissertativa
+4. O Sistema DEVE permitir que o Instrutor adicione aulas nos formatos vídeo, PDF e texto
+5. O Sistema DEVE exigir que cada módulo contenha exatamente uma avaliação
+6. O Sistema DEVE permitir que o Instrutor crie avaliações do tipo múltipla escolha com pontuação automática de 10 pontos divididos igualmente entre as questões
 
 ### Requisito 4: Aprovação e Publicação de Cursos
 
@@ -65,10 +66,11 @@ A Plataforma EAD é um sistema de ensino a distância que oferece cursos online 
 #### Acceptance Criteria
 
 1. QUANDO um Instrutor finaliza a criação de um curso, O Sistema DEVE enviar o curso para revisão do Administrador
-2. O Sistema DEVE impedir que um curso seja acessível aos Alunos antes da aprovação do Administrador
-3. QUANDO o Administrador aprova um curso, O Sistema DEVE publicar o curso e torná-lo acessível aos Alunos com assinatura ativa
-4. O Sistema DEVE manter um histórico de versões de cada curso
-5. O Sistema DEVE permitir que o Administrador rejeite um curso e solicite alterações ao Instrutor
+2. O Sistema DEVE impedir que um curso seja submetido para aprovação SE algum módulo não possuir avaliação
+3. O Sistema DEVE impedir que um curso seja acessível aos Alunos antes da aprovação do Administrador
+4. QUANDO o Administrador aprova um curso, O Sistema DEVE publicar o curso e torná-lo acessível aos Alunos com assinatura ativa
+5. O Sistema DEVE manter um histórico de versões de cada curso
+6. O Sistema DEVE permitir que o Administrador rejeite um curso e solicite alterações ao Instrutor
 
 ### Requisito 5: Gestão de Assinaturas
 
@@ -112,11 +114,12 @@ A Plataforma EAD é um sistema de ensino a distância que oferece cursos online 
 
 #### Acceptance Criteria
 
-1. QUANDO um Aluno conclui 100% das aulas de um curso E obtém nota mínima na avaliação final, O Sistema DEVE gerar automaticamente um certificado
-2. O Sistema DEVE incluir no certificado: nome do Aluno, nome do curso, carga horária, data de conclusão, assinatura digital e código único de verificação
-3. QUANDO um certificado é gerado, O Sistema DEVE enviar notificação por e-mail ao Aluno com link para download
-4. O Sistema DEVE gerar um link público para cada certificado que permita validação por terceiros
-5. QUANDO um terceiro acessa o link de validação com o código único, O Sistema DEVE exibir os dados do certificado
+1. QUANDO um Aluno conclui 100% das aulas de um curso E obtém nota final maior ou igual à nota de corte do curso, O Sistema DEVE gerar automaticamente um certificado
+2. O Sistema DEVE calcular a nota final como a média aritmética de todas as avaliações dos módulos do curso
+3. O Sistema DEVE incluir no certificado: nome do Aluno, nome do curso, carga horária, nota final obtida, data de conclusão, assinatura digital e código único de verificação
+4. QUANDO um certificado é gerado, O Sistema DEVE enviar notificação por e-mail ao Aluno com link para download
+5. O Sistema DEVE gerar um link público para cada certificado que permita validação por terceiros
+6. QUANDO um terceiro acessa o link de validação com o código único, O Sistema DEVE exibir os dados do certificado
 
 ### Requisito 9: Acompanhamento de Progresso pelo Instrutor
 
@@ -126,9 +129,9 @@ A Plataforma EAD é um sistema de ensino a distância que oferece cursos online 
 
 1. O Sistema DEVE exibir para o Instrutor uma lista de Alunos matriculados em cada curso que ele ministra
 2. O Sistema DEVE exibir o percentual de progresso de cada Aluno em cada curso
-3. O Sistema DEVE permitir que o Instrutor visualize as respostas das avaliações dissertativas
-4. O Sistema DEVE permitir que o Instrutor corrija e atribua notas às avaliações dissertativas
-5. O Sistema DEVE calcular automaticamente a nota final considerando todas as avaliações do curso
+3. O Sistema DEVE exibir as notas obtidas por cada Aluno em cada avaliação de módulo
+4. O Sistema DEVE calcular e exibir a nota final do Aluno como a média aritmética de todas as avaliações dos módulos
+5. O Sistema DEVE permitir que o Aluno refaça avaliações quantas vezes desejar, considerando sempre a última tentativa
 
 ### Requisito 10: Relatórios Administrativos
 

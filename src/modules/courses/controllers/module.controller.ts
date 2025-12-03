@@ -267,6 +267,18 @@ export class ModuleController {
         message: 'Module deleted successfully',
       });
     } catch (error) {
+      if (error instanceof Error && error.message === 'MODULE_HAS_ASSESSMENT') {
+        res.status(400).json({
+          error: {
+            code: 'MODULE_HAS_ASSESSMENT',
+            message: 'Cannot delete module that has an assessment. Delete the assessment first.',
+            timestamp: new Date().toISOString(),
+            path: req.path,
+          },
+        });
+        return;
+      }
+
       logger.error('Failed to delete module', error);
       res.status(500).json({
         error: {

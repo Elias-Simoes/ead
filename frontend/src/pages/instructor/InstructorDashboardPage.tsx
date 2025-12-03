@@ -23,6 +23,7 @@ export const InstructorDashboardPage = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDashboard()
@@ -59,6 +60,24 @@ export const InstructorDashboardPage = () => {
       setError(err.response?.data?.error?.message || 'Erro ao carregar dashboard')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSubmitForApproval = async (courseId: string) => {
+    if (!confirm('Tem certeza que deseja submeter este curso para aprovação? Você não poderá editá-lo até que seja aprovado ou rejeitado.')) {
+      return
+    }
+
+    try {
+      setSubmitting(courseId)
+      await api.post(`/courses/${courseId}/submit`)
+      alert('Curso submetido para aprovação com sucesso!')
+      fetchDashboard() // Recarregar lista
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error?.message || 'Erro ao submeter curso'
+      alert(errorMessage)
+    } finally {
+      setSubmitting(null)
     }
   }
 
@@ -229,18 +248,31 @@ export const InstructorDashboardPage = () => {
                         {course.completionRate || 0}%
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link
-                          to={`/instructor/courses/${course.id}`}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          Editar
-                        </Link>
-                        <Link
-                          to={`/instructor/courses/${course.id}/students`}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          Ver Alunos
-                        </Link>
+                        <div className="flex items-center space-x-3">
+                          {course.status === 'draft' && (
+                            <button
+                              onClick={() => handleSubmitForApproval(course.id)}
+                              disabled={submitting === course.id}
+                              className="text-purple-600 hover:text-purple-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {submitting === course.id ? 'Submetendo...' : 'Submeter'}
+                            </button>
+                          )}
+                          {course.status !== 'pending_approval' && (
+                            <Link
+                              to={`/instructor/courses/${course.id}`}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Editar
+                            </Link>
+                          )}
+                          <Link
+                            to={`/instructor/courses/${course.id}/students`}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Alunos
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

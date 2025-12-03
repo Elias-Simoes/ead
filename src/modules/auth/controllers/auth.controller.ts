@@ -214,12 +214,26 @@ export class AuthController {
         return;
       }
 
-      res.status(200).json({
+      // Base user data
+      const userData: any = {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
-      });
+      };
+
+      // If user is a student, include subscription information
+      if (user.role === 'student') {
+        const { studentService } = await import('@modules/users/services/student.service');
+        const studentProfile = await studentService.getStudentProfile(user.id);
+        
+        if (studentProfile) {
+          userData.subscriptionStatus = studentProfile.subscription_status;
+          userData.subscriptionExpiresAt = studentProfile.subscription_expires_at;
+        }
+      }
+
+      res.status(200).json(userData);
     } catch (error) {
       next(error);
     }

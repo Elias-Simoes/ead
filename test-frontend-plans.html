@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Planos - Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Planos - Frontend</h1>
+    
+    <div class="section">
+        <h2>1. Login</h2>
+        <button onclick="doLogin()">Fazer Login como Estudante Vencido</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Buscar Planos</h2>
+        <button onclick="fetchPlans()">Buscar Planos Disponíveis</button>
+        <div id="plansResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Renovar Assinatura</h2>
+        <input type="text" id="planId" placeholder="ID do Plano" style="width: 300px; padding: 8px;">
+        <button onclick="renewSubscription()">Renovar com este Plano</button>
+        <div id="renewResult"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        async function doLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.innerHTML = '<p>Fazendo login...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'expired@example.com',
+                        password: 'Expired123!'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Salvar tokens
+                    localStorage.setItem('accessToken', data.data.tokens.accessToken);
+                    localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
+                    
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Login realizado com sucesso!</p>
+                        <pre>${JSON.stringify(data.data.user, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Erro no login</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchPlans() {
+            const resultDiv = document.getElementById('plansResult');
+            resultDiv.innerHTML = '<p>Buscando planos...</p>';
+
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                resultDiv.innerHTML = '<p class="error">❌ Faça login primeiro!</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/subscriptions/plans`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ ${data.length} planos encontrados!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    
+                    // Preencher o primeiro plano no campo
+                    if (data.length > 0) {
+                        document.getElementById('planId').value = data[0].id;
+                    }
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Erro ao buscar planos</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function renewSubscription() {
+            const resultDiv = document.getElementById('renewResult');
+            const planId = document.getElementById('planId').value;
+
+            if (!planId) {
+                resultDiv.innerHTML = '<p class="error">❌ Digite o ID do plano!</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p>Processando renovação...</p>';
+
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                resultDiv.innerHTML = '<p class="error">❌ Faça login primeiro!</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/subscriptions/renew`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ planId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Checkout criado com sucesso!</p>
+                        <p>URL do Checkout: <a href="${data.checkoutUrl}" target="_blank">${data.checkoutUrl}</a></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Erro ao renovar assinatura</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

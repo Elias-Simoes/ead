@@ -5,6 +5,13 @@ import api from '../../services/api';
 import QuestionEditor from '../../components/QuestionEditor';
 import { Assessment, Question, CreateQuestionData, UpdateQuestionData } from '../../types';
 
+interface Module {
+  id: string;
+  title: string;
+  description?: string;
+  orderIndex: number;
+}
+
 const AssessmentFormPage: React.FC = () => {
   const { courseId, assessmentId } = useParams<{ courseId: string; assessmentId?: string }>();
   const navigate = useNavigate();
@@ -17,7 +24,12 @@ const AssessmentFormPage: React.FC = () => {
   // Dados da avaliação
   const [title, setTitle] = useState('');
   const [passingScore, setPassingScore] = useState(70);
+  const [selectedModuleId, setSelectedModuleId] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
+  
+  // Módulos disponíveis (sem avaliação)
+  const [availableModules, setAvailableModules] = useState<Module[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
   
   // Estado de edição
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
@@ -26,8 +38,24 @@ const AssessmentFormPage: React.FC = () => {
   useEffect(() => {
     if (assessmentId) {
       loadAssessment();
+    } else {
+      // Carregar módulos disponíveis apenas ao criar nova avaliação
+      loadAvailableModules();
     }
   }, [assessmentId]);
+
+  const loadAvailableModules = async () => {
+    try {
+      setLoadingModules(true);
+      const response = await api.get(`/courses/${courseId}/modules-without-assessments`);
+      setAvailableModules(response.data.data.modules);
+    } catch (err: any) {
+      console.error('Erro ao carregar módulos:', err);
+      setError(err.response?.data?.error?.message || 'Erro ao carregar módulos disponíveis');
+    } finally {
+      setLoadingModules(false);
+    }
+  };
 
   const loadAssessment = async () => {
     try {
@@ -64,18 +92,22 @@ const AssessmentFormPage: React.FC = () => {
         // Atualizar avaliação existente
         await api.patch(`/assessments/${assessmentId}`, {
           title,
-          passing_score: passingScore,
         });
         setSuccess('Avaliação atualizada com sucesso!');
       } else {
         // Criar nova avaliação
-        const response = await api.post(`/courses/${courseId}/assessments`, {
+        if (!selectedModuleId) {
+          setError('Selecione um módulo para a avaliação');
+          return;
+        }
+
+        const response = await api.post(`/modules/${selectedModuleId}/assessments`, {
           title,
           type: 'multiple_choice',
           passing_score: passingScore,
         });
         
-        const newAssessmentId = response.data.data.id;
+        const newAssessmentId = response.data.data.assessment.id;
         setSuccess('Avaliação criada com sucesso!');
         
         // Redirecionar para edição
@@ -158,7 +190,7 @@ const AssessmentFormPage: React.FC = () => {
     }
   };
 
-  const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
+  const totalPoints = questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
   if (loading) {
     return (
@@ -206,7 +238,53 @@ const AssessmentFormPage: React.FC = () => {
           Informações da Avaliação
         </h2>
 
+        {/* Mensagem quando não há módulos disponíveis */}
+        {!assessmentId && !loadingModules && availableModules.length === 0 && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-yellow-800 font-medium">
+              ℹ️ Todos os módulos já possuem avaliações
+            </p>
+            <p className="text-yellow-700 text-sm mt-1">
+              Não é possível criar novas avaliações pois todos os módulos do curso já possuem suas avaliações.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-4">
+          {/* Seletor de Módulo (apenas ao criar) */}
+          {!assessmentId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Módulo *
+              </label>
+              {loadingModules ? (
+                <div className="text-gray-500 text-sm">Carregando módulos...</div>
+              ) : availableModules.length > 0 ? (
+                <>
+                  <select
+                    value={selectedModuleId}
+                    onChange={(e) => setSelectedModuleId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecione um módulo</option>
+                    {availableModules.map((module) => (
+                      <option key={module.id} value={module.id}>
+                        {module.title}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Módulos que ainda não possuem avaliação ({availableModules.length} disponível{availableModules.length !== 1 ? 'is' : ''})
+                  </p>
+                </>
+              ) : (
+                <div className="text-gray-500 text-sm italic">
+                  Nenhum módulo disponível para criar avaliação
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Título da Avaliação
@@ -215,32 +293,36 @@ const AssessmentFormPage: React.FC = () => {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!assessmentId && availableModules.length === 0}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Ex: Avaliação Final - Módulo 1"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nota de Corte (%)
-            </label>
-            <input
-              type="number"
-              value={passingScore}
-              onChange={(e) => setPassingScore(parseInt(e.target.value) || 0)}
-              className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              min="0"
-              max="100"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Nota mínima para aprovação
-            </p>
-          </div>
+          {!assessmentId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nota de Corte (%)
+              </label>
+              <input
+                type="number"
+                value={passingScore}
+                onChange={(e) => setPassingScore(parseInt(e.target.value) || 0)}
+                disabled={availableModules.length === 0}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                min="0"
+                max="100"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Nota mínima para aprovação
+              </p>
+            </div>
+          )}
 
           <button
             onClick={handleSaveAssessment}
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+            disabled={saving || (!assessmentId && availableModules.length === 0)}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {saving ? 'Salvando...' : assessmentId ? 'Atualizar Avaliação' : 'Criar Avaliação'}
           </button>
@@ -254,7 +336,7 @@ const AssessmentFormPage: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Questões</h2>
               <p className="text-sm text-gray-600">
-                Total de pontos: {totalPoints} | Questões: {questions.length}
+                Total de pontos: {Number(totalPoints).toFixed(2)} | Questões: {questions.length}
               </p>
             </div>
             {!showNewQuestionForm && (
@@ -313,7 +395,7 @@ const AssessmentFormPage: React.FC = () => {
                     <p className="text-gray-800 mb-3">{question.text}</p>
                     
                     <div className="text-sm text-gray-600 mb-3">
-                      Pontos: {question.points}
+                      Pontos: {Number(question.points).toFixed(2)}
                     </div>
 
                     {question.options && (

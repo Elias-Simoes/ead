@@ -24,7 +24,8 @@ export default function LoginPage() {
       } else if (userData.role === 'admin') {
         navigate('/admin/dashboard')
       } else {
-        navigate('/')
+        // Estudantes vão para a página de cursos
+        navigate('/courses')
       }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Falha no login. Verifique suas credenciais.')

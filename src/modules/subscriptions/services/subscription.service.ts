@@ -313,6 +313,93 @@ export class SubscriptionService {
   }
 
   /**
+   * Renew an expired or cancelled subscription
+   */
+  async renewSubscription(data: CreateSubscriptionData): Promise<{
+    checkoutUrl: string;
+    sessionId: string;
+  }> {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Check if student exists
+      const studentCheck = await client.query(
+        'SELECT id, email FROM users WHERE id = $1 AND role = $2',
+        [data.studentId, 'student']
+      );
+
+      if (studentCheck.rows.length === 0) {
+        throw new Error('STUDENT_NOT_FOUND');
+      }
+
+      // Check if plan exists and is active
+      const planResult = await client.query(
+        'SELECT * FROM plans WHERE id = $1 AND is_active = true',
+        [data.planId]
+      );
+
+      if (planResult.rows.length === 0) {
+        throw new Error('PLAN_NOT_FOUND_OR_INACTIVE');
+      }
+
+      const plan = planResult.rows[0];
+
+      // Check if student already has an active subscription
+      const activeSubCheck = await client.query(
+        'SELECT id FROM subscriptions WHERE student_id = $1 AND status = $2',
+        [data.studentId, 'active']
+      );
+
+      if (activeSubCheck.rows.length > 0) {
+        throw new Error('STUDENT_ALREADY_HAS_ACTIVE_SUBSCRIPTION');
+      }
+
+      // Create checkout session with payment gateway
+      const checkoutSession = await paymentGatewayService.createCheckoutSession(
+        {
+          planId: plan.id,
+          planName: plan.name,
+          planPrice: parseFloat(plan.price),
+          currency: plan.currency,
+          studentId: data.studentId,
+          studentEmail: data.studentEmail,
+          successUrl: `${config.app.frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${config.app.frontendUrl}/subscription/cancel`,
+        }
+      );
+
+      // Create pending subscription record
+      await client.query(
+        `INSERT INTO subscriptions 
+         (student_id, plan_id, status, current_period_start, current_period_end, gateway_subscription_id)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 month', $4)`,
+        [data.studentId, data.planId, 'pending', checkoutSession.sessionId]
+      );
+
+      await client.query('COMMIT');
+
+      logger.info('Subscription renewal checkout created', {
+        studentId: data.studentId,
+        planId: data.planId,
+        sessionId: checkoutSession.sessionId,
+      });
+
+      return {
+        checkoutUrl: checkoutSession.checkoutUrl,
+        sessionId: checkoutSession.sessionId,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to renew subscription', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Update subscription status (used by webhook handler)
    */
   async updateSubscriptionStatus(

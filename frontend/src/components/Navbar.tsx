@@ -100,12 +100,19 @@ export const Navbar = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/profile"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  {user?.name}
-                </Link>
+                {/* Link de perfil apenas para estudantes */}
+                {user?.role === 'student' && (
+                  <Link
+                    to="/profile"
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    {user?.name}
+                  </Link>
+                )}
+                {/* Para instrutores e admins, apenas mostrar o nome sem link */}
+                {(user?.role === 'instructor' || user?.role === 'admin') && (
+                  <span className="text-gray-700 px-3 py-2 text-sm font-medium">{user?.name}</span>
+                )}
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"

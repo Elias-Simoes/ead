@@ -21,7 +21,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     type: question?.type || 'multiple_choice' as const,
     options: question?.options || ['', '', '', ''],
     correct_answer: question?.correctAnswer ?? 0,
-    points: question?.points || 10,
   });
 
   // Atualizar formData quando a questão mudar
@@ -32,7 +31,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         type: question.type || 'multiple_choice',
         options: question.options || ['', '', '', ''],
         correct_answer: question.correctAnswer ?? 0,
-        points: question.points || 10,
       });
     }
   }, [question]);
@@ -87,10 +85,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
       }
     }
 
-    if (formData.points <= 0) {
-      newErrors.push('Os pontos devem ser maiores que zero');
-    }
-
     setErrors(newErrors);
     return newErrors.length === 0;
   };
@@ -105,7 +99,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     const data: CreateQuestionData | UpdateQuestionData = {
       text: formData.text.trim(),
       type: formData.type,
-      points: Number(formData.points),
+      points: 0, // Será recalculado automaticamente pelo backend
       order_index: question?.order || questionNumber,
     };
 
@@ -146,20 +140,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={3}
             placeholder="Digite o enunciado da questão..."
-          />
-        </div>
-
-        {/* Pontos */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Pontos
-          </label>
-          <input
-            type="number"
-            value={formData.points}
-            onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 0 })}
-            className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            min="1"
           />
         </div>
 

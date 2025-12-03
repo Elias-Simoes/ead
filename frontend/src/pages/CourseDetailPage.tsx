@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
+import { SubscriptionWarning } from '../components/SubscriptionWarning'
 import api from '../services/api'
 import { Course, Module, StudentProgress } from '../types'
+import { useAuth } from '../contexts/AuthContext'
 
 export const CourseDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [course, setCourse] = useState<Course | null>(null)
   const [progress, setProgress] = useState<StudentProgress | null>(null)
   const [loading, setLoading] = useState(true)
@@ -15,14 +18,18 @@ export const CourseDetailPage = () => {
   useEffect(() => {
     if (id) {
       fetchCourseDetails()
-      fetchProgress()
+      // Only fetch progress for students
+      if (user?.role === 'student') {
+        fetchProgress()
+      }
     }
-  }, [id])
+  }, [id, user])
 
   const fetchCourseDetails = async () => {
     try {
-      const response = await api.get<{ data: Course }>(`/courses/${id}/content`)
-      setCourse(response.data.data)
+      // Try to get course with full details first
+      const response = await api.get<{ data: { course: Course } }>(`/courses/${id}`)
+      setCourse(response.data.data.course)
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Erro ao carregar curso')
     } finally {
@@ -50,6 +57,11 @@ export const CourseDetailPage = () => {
   }
 
   const handleToggleFavorite = async () => {
+    // Only students can favorite courses
+    if (user?.role !== 'student') {
+      return
+    }
+    
     try {
       await api.patch(`/courses/${id}/favorite`)
       setProgress((prev) => (prev ? { ...prev, isFavorite: !prev.isFavorite } : null))
@@ -91,6 +103,9 @@ export const CourseDetailPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Subscription Warning */}
+        <SubscriptionWarning />
+        
         {/* Course Header */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
           <div className="md:flex">
@@ -182,7 +197,7 @@ export const CourseDetailPage = () => {
                 </span>
               </div>
 
-              {progress && (
+              {progress && user?.role === 'student' && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-gray-700 font-medium">Seu progresso</span>
@@ -197,12 +212,21 @@ export const CourseDetailPage = () => {
                 </div>
               )}
 
-              <button
-                onClick={handleStartCourse}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium text-lg"
-              >
-                {progress ? 'Continuar Curso' : 'Iniciar Curso'}
-              </button>
+              {user?.role === 'student' && (
+                <button
+                  onClick={handleStartCourse}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium text-lg"
+                >
+                  {progress ? 'Continuar Curso' : 'Iniciar Curso'}
+                </button>
+              )}
+              
+              {user?.role === 'admin' && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md">
+                  <p className="font-medium">Modo de Visualização Admin</p>
+                  <p className="text-sm">Você está visualizando este curso para aprovação.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -224,10 +248,21 @@ export const CourseDetailPage = () => {
                 <div className="divide-y divide-gray-200">
                   {module.lessons?.map((lesson, lessonIndex) => {
                     const isCompleted = progress?.completedLessons.includes(lesson.id)
+                    const lessonUrl = `/courses/${id}/lessons/${lesson.id}`
+                    
+                    const handleLessonClick = (e: React.MouseEvent) => {
+                      console.log('Clicou na aula:', lesson.title)
+                      console.log('URL da aula:', lessonUrl)
+                      console.log('ID do curso:', id)
+                      console.log('ID da aula:', lesson.id)
+                      // O Link do React Router já vai fazer a navegação
+                    }
+                    
                     return (
                       <Link
                         key={lesson.id}
-                        to={`/courses/${id}/lessons/${lesson.id}`}
+                        to={lessonUrl}
+                        onClick={handleLessonClick}
                         className="flex items-center px-6 py-4 hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex-shrink-0 mr-4">

@@ -382,6 +382,39 @@ export class CourseService {
         throw new Error('COURSE_NEEDS_LESSON');
       }
 
+      // Check if all modules have assessments
+      const modulesWithoutAssessment = await client.query(
+        `SELECT m.id, m.title
+         FROM modules m
+         LEFT JOIN assessments a ON m.id = a.module_id
+         WHERE m.course_id = $1 AND a.id IS NULL`,
+        [courseId]
+      );
+
+      if (modulesWithoutAssessment.rows.length > 0) {
+        const moduleNames = modulesWithoutAssessment.rows.map((m: any) => m.title).join(', ');
+        throw new Error(`MODULES_WITHOUT_ASSESSMENT: ${moduleNames}`);
+      }
+
+      // Check if all assessments have at least one question
+      const assessmentsWithoutQuestions = await client.query(
+        `SELECT a.id, a.title, m.title as module_title
+         FROM assessments a
+         INNER JOIN modules m ON a.module_id = m.id
+         LEFT JOIN questions q ON a.id = q.assessment_id
+         WHERE m.course_id = $1
+         GROUP BY a.id, a.title, m.title
+         HAVING COUNT(q.id) = 0`,
+        [courseId]
+      );
+
+      if (assessmentsWithoutQuestions.rows.length > 0) {
+        const assessmentNames = assessmentsWithoutQuestions.rows
+          .map((a: any) => `${a.module_title} - ${a.title}`)
+          .join(', ');
+        throw new Error(`ASSESSMENTS_WITHOUT_QUESTIONS: ${assessmentNames}`);
+      }
+
       // Update course status to pending_approval
       const result = await client.query(
         `UPDATE courses 
@@ -579,7 +612,7 @@ export class CourseService {
   async getPendingCourses(
     page: number = 1,
     limit: number = 20
-  ): Promise<{ courses: Course[]; total: number; page: number; totalPages: number }> {
+  ): Promise<{ courses: any[]; total: number; page: number; totalPages: number }> {
     try {
       const offset = (page - 1) * limit;
 
@@ -589,9 +622,15 @@ export class CourseService {
       );
       const total = parseInt(countResult.rows[0].count);
 
-      // Get courses
+      // Get courses with instructor info
       const result = await pool.query(
-        `SELECT c.*, u.name as instructor_name, u.email as instructor_email
+        `SELECT 
+          c.*,
+          json_build_object(
+            'id', u.id,
+            'name', u.name,
+            'email', u.email
+          ) as instructor
          FROM courses c
          INNER JOIN users u ON c.instructor_id = u.id
          WHERE c.status = 'pending_approval'
@@ -600,8 +639,18 @@ export class CourseService {
         [limit, offset]
       );
 
+      // Enrich courses with URLs and format data
+      const enrichedCourses = result.rows.map(course => ({
+        ...this.enrichCourseWithUrls(course),
+        createdAt: course.created_at,
+        updatedAt: course.updated_at,
+        publishedAt: course.published_at,
+        instructorId: course.instructor_id,
+        coverImage: course.cover_image,
+      }));
+
       return {
-        courses: result.rows,
+        courses: enrichedCourses,
         total,
         page,
         totalPages: Math.ceil(total / limit),

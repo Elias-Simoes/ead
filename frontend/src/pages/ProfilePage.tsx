@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import api from '../services/api'
 import { Student } from '../types'
+import { useAuthStore } from '../stores/authStore'
 
 export const ProfilePage = () => {
+  const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<Student | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -18,9 +22,28 @@ export const ProfilePage = () => {
     fetchProfile()
   }, [])
 
+  const getProfileEndpoint = () => {
+    if (user?.role === 'student') {
+      return '/students/profile'
+    } else if (user?.role === 'instructor') {
+      return '/instructors/profile'
+    } else if (user?.role === 'admin') {
+      return '/admin/profile'
+    }
+    return '/students/profile' // fallback
+  }
+
   const fetchProfile = async () => {
     try {
-      const response = await api.get<{ data: Student }>('/students/profile')
+      // Apenas estudantes têm página de perfil completa
+      if (user?.role !== 'student') {
+        setError('Página de perfil disponível apenas para estudantes')
+        setLoading(false)
+        return
+      }
+
+      const endpoint = getProfileEndpoint()
+      const response = await api.get<{ data: Student }>(endpoint)
       setProfile(response.data.data)
       setFormData({
         name: response.data.data.name,
@@ -39,7 +62,8 @@ export const ProfilePage = () => {
     setSuccess('')
 
     try {
-      const response = await api.patch<{ data: Student }>('/students/profile', formData)
+      const endpoint = getProfileEndpoint()
+      const response = await api.patch<{ data: Student }>(endpoint, formData)
       setProfile(response.data.data)
       setEditing(false)
       setSuccess('Perfil atualizado com sucesso!')
@@ -75,8 +99,50 @@ export const ProfilePage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-            {error || 'Perfil não encontrado'}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <div className="flex items-start">
+              <svg
+                className="w-6 h-6 text-yellow-600 mt-0.5 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="text-lg font-medium text-yellow-800 mb-2">
+                  Página de Perfil Indisponível
+                </h3>
+                <p className="text-yellow-700 mb-4">
+                  {user?.role === 'instructor'
+                    ? 'Como instrutor, você pode gerenciar suas informações através do Dashboard do Instrutor.'
+                    : user?.role === 'admin'
+                    ? 'Como administrador, você pode gerenciar suas informações através do Dashboard Admin.'
+                    : error || 'Perfil não encontrado'}
+                </p>
+                {user?.role === 'instructor' && (
+                  <a
+                    href="/instructor/dashboard"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
+                  >
+                    Ir para Dashboard do Instrutor
+                  </a>
+                )}
+                {user?.role === 'admin' && (
+                  <a
+                    href="/admin/dashboard"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
+                  >
+                    Ir para Dashboard Admin
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -200,7 +266,23 @@ export const ProfilePage = () => {
               </div>
             )}
             {profile.subscriptionStatus !== 'active' && (
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
+              <button
+                onClick={() => navigate('/subscription/renew')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium flex items-center justify-center"
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
                 Renovar Assinatura
               </button>
             )}

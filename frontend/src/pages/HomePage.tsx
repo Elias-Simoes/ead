@@ -1,10 +1,24 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Navbar } from '../components/Navbar'
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
+
+  // Redirecionar usuários autenticados para suas páginas apropriadas
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'instructor') {
+        navigate('/instructor/dashboard')
+      } else if (user.role === 'admin') {
+        navigate('/admin/dashboard')
+      } else {
+        navigate('/courses')
+      }
+    }
+  }, [isAuthenticated, user, navigate])
 
   if (!isAuthenticated) {
     return (

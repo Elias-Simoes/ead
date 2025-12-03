@@ -6,7 +6,10 @@ export const createCourseSchema = z.object({
     description: z.string().optional(),
     cover_image: z.string().optional(), // Aceita key ou URL
     category: z.string().max(100).optional(),
-    workload: z.number().int().positive(),
+    workload: z.union([
+      z.number().int().positive(),
+      z.string().regex(/^\d+$/).transform(val => parseInt(val, 10))
+    ]),
   }),
 });
 
@@ -19,7 +22,10 @@ export const updateCourseSchema = z.object({
     description: z.string().optional(),
     cover_image: z.string().optional(), // Aceita key ou URL
     category: z.string().max(100).optional(),
-    workload: z.number().int().positive().optional(),
+    workload: z.union([
+      z.number().int().positive(),
+      z.string().regex(/^\d+$/).transform(val => parseInt(val, 10))
+    ]).optional(),
   }),
 });
 

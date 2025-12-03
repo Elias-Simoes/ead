@@ -32,15 +32,28 @@
   - Visualizar relatórios
   - Acesso completo ao sistema
 
-### Aluno (Estudante)
+### Aluno (Estudante) - Assinatura Ativa
 - **Email**: `student@example.com`
 - **Senha**: `Student123!`
+- **Status**: ✅ Assinatura ativa até 22/11/2026
 - **Funcionalidades**:
   - Visualizar cursos disponíveis
   - Inscrever-se em cursos
+  - **Acessar conteúdo das aulas** ✅
   - Acompanhar progresso
   - Fazer avaliações
   - Obter certificados
+
+### Aluno (Estudante) - Assinatura Vencida
+- **Email**: `expired@example.com`
+- **Senha**: `Expired123!`
+- **Status**: ❌ Assinatura vencida (expirou há 30 dias)
+- **Uso**: Testar avisos de assinatura vencida
+- **Comportamento Esperado**:
+  - ⚠️ Vê aviso amarelo no topo das páginas
+  - ✅ Pode ver catálogo de cursos
+  - ❌ Não pode acessar conteúdo das aulas (erro 403)
+  - ❌ Não pode fazer avaliações
 
 ## Como Iniciar o Sistema
 
