@@ -1,0 +1,247 @@
+/**
+ * E2E Test: Card Payment with Installments
+ * 
+ * This is an example Playwright test implementation.
+ * To use this file:
+ * 1. Install Playwright: npm install -D @playwright/test
+ * 2. Initialize: npx playwright install
+ * 3. Rename file to .spec.ts
+ * 4. Run: npx playwright test
+ */
+
+import { test, expect, Page } from '@playwright/test';
+
+// Test configuration
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5174';
+const API_URL = process.env.API_URL || 'http://localhost:3000';
+
+// Test credentials
+const TEST_STUDENT = {
+  email: 'student-test@example.com',
+  password: 'Test123!',
+};
+
+// Helper functions
+async function loginAsStudent(page: Page) {
+  await page.goto(`${BASE_URL}/login`);
+  await page.fill('[name="email"]', TEST_STUDENT.email);
+  await page.fill('[name="password"]', TEST_STUDENT.password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(`${BASE_URL}/dashboard`);
+}
+
+async function navigateToCheckout(page: Page) {
+  await page.goto(`${BASE_URL}/plans`);
+  await page.click('button:has-text("Assinar"), button:has-text("Renovar")');
+  await page.waitForURL(/\/checkout\/.+/);
+}
+
+test.describe('Card Payment with Installments - E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    // Login before each test
+    await loginAsStudent(page);
+  });
+
+  test('E2E-CHECKOUT-001: User selects plan and completes checkout with 12 installments', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Verify checkout page loaded
+    await expect(page.locator('h1, h2')).toContainText('Premium Plan');
+    await expect(page.locator('[data-testid="plan-price"]')).toContainText('99,90');
+
+    // Select card payment method
+    await page.click('[data-testid="payment-method-card"]');
+    
+    // Verify card payment form is visible
+    await expect(page.locator('[data-testid="card-payment-form"]')).toBeVisible();
+
+    // Verify installment dropdown is visible
+    await expect(page.locator('[data-testid="installments-select"]')).toBeVisible();
+
+    // Select 12 installments
+    await page.selectOption('[data-testid="installments-select"]', '12');
+
+    // Verify installment value is displayed correctly
+    const installmentText = await page.locator('[data-testid="installment-value"]').textContent();
+    expect(installmentText).toContain('12x');
+    expect(installmentText).toContain('8,33'); // 99.90 / 12 ≈ 8.33
+
+    // Verify total amount is displayed
+    await expect(page.locator('[data-testid="total-amount"]')).toContainText('99,90');
+
+    // Click confirm payment button
+    await page.click('button:has-text("Confirmar Pagamento")');
+
+    // Wait for redirect to Stripe Checkout
+    await page.waitForURL(/checkout\.stripe\.com/, { timeout: 10000 });
+
+    // Verify Stripe Checkout page loaded
+    await expect(page.locator('body')).toContainText('Premium Plan');
+    
+    // Note: In a real test, you would fill in Stripe test card details
+    // and complete the payment flow. For this example, we stop here.
+  });
+
+  test('E2E-CHECKOUT-008: Installment options respect configuration limits', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Select card payment
+    await page.click('[data-testid="payment-method-card"]');
+
+    // Get all installment options
+    const options = await page.locator('[data-testid="installments-select"] option').allTextContents();
+
+    // Verify options are available (1x to 12x by default)
+    expect(options.length).toBeGreaterThan(1);
+    expect(options.length).toBeLessThanOrEqual(12);
+
+    // Verify first option is 1x
+    expect(options[0]).toContain('1x');
+
+    // Select maximum installments
+    const maxOption = options[options.length - 1];
+    await page.selectOption('[data-testid="installments-select"]', { index: options.length - 1 });
+
+    // Verify selection worked
+    const selectedValue = await page.locator('[data-testid="installments-select"]').inputValue();
+    expect(parseInt(selectedValue)).toBeGreaterThan(0);
+  });
+
+  test('Should display installment value without interest for configured range', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Select card payment
+    await page.click('[data-testid="payment-method-card"]');
+
+    // Select installments within no-interest range (e.g., 6x)
+    await page.selectOption('[data-testid="installments-select"]', '6');
+
+    // Verify "sem juros" indicator is shown
+    const installmentText = await page.locator('[data-testid="installment-value"]').textContent();
+    expect(installmentText?.toLowerCase()).toContain('sem juros');
+  });
+
+  test('Should calculate installment values correctly for different amounts', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Select card payment
+    await page.click('[data-testid="payment-method-card"]');
+
+    // Test different installment options
+    const testCases = [
+      { installments: '1', expectedContains: '99,90' },
+      { installments: '2', expectedContains: '49,95' },
+      { installments: '3', expectedContains: '33,30' },
+      { installments: '6', expectedContains: '16,65' },
+      { installments: '12', expectedContains: '8,33' },
+    ];
+
+    for (const testCase of testCases) {
+      await page.selectOption('[data-testid="installments-select"]', testCase.installments);
+      
+      const installmentValue = await page.locator('[data-testid="installment-value"]').textContent();
+      expect(installmentValue).toContain(testCase.expectedContains);
+    }
+  });
+});
+
+test.describe('Card Payment - Error Handling', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsStudent(page);
+  });
+
+  test('E2E-CHECKOUT-010: Should handle payment failure gracefully', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Select card payment
+    await page.click('[data-testid="payment-method-card"]');
+
+    // Select installments
+    await page.selectOption('[data-testid="installments-select"]', '12');
+
+    // Click confirm
+    await page.click('button:has-text("Confirmar Pagamento")');
+
+    // Wait for Stripe redirect
+    await page.waitForURL(/checkout\.stripe\.com/, { timeout: 10000 });
+
+    // Note: To test failure, you would:
+    // 1. Fill in Stripe form with decline test card (4000 0000 0000 0002)
+    // 2. Submit the form
+    // 3. Verify error message
+    // 4. Verify return to checkout page
+    // 5. Verify ability to retry
+
+    // For this example, we just verify we reached Stripe
+    await expect(page.locator('body')).toContainText('Premium Plan');
+  });
+
+  test('Should validate required fields before submission', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Try to submit without selecting payment method
+    const confirmButton = page.locator('button:has-text("Confirmar Pagamento")');
+    
+    // Button should be disabled or show validation error
+    const isDisabled = await confirmButton.isDisabled();
+    if (!isDisabled) {
+      await confirmButton.click();
+      // Should show validation error
+      await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
+    }
+  });
+});
+
+test.describe('Payment Method Comparison', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsStudent(page);
+  });
+
+  test('E2E-CHECKOUT-006: Should display payment method comparison', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Verify payment method selector is visible
+    await expect(page.locator('[data-testid="payment-method-selector"]')).toBeVisible();
+
+    // Verify card option is visible
+    await expect(page.locator('[data-testid="payment-method-card"]')).toBeVisible();
+    await expect(page.locator('[data-testid="payment-method-card"]')).toContainText('Cartão');
+
+    // Verify PIX option is visible
+    await expect(page.locator('[data-testid="payment-method-pix"]')).toBeVisible();
+    await expect(page.locator('[data-testid="payment-method-pix"]')).toContainText('PIX');
+
+    // Verify comparison component shows both methods
+    const comparisonSection = page.locator('[data-testid="payment-comparison"]');
+    if (await comparisonSection.isVisible()) {
+      await expect(comparisonSection).toContainText('Cartão');
+      await expect(comparisonSection).toContainText('PIX');
+      await expect(comparisonSection).toContainText('desconto');
+    }
+  });
+
+  test('Should highlight selected payment method', async ({ page }) => {
+    // Navigate to checkout
+    await navigateToCheckout(page);
+
+    // Select card payment
+    await page.click('[data-testid="payment-method-card"]');
+
+    // Verify card is highlighted
+    await expect(page.locator('[data-testid="payment-method-card"]')).toHaveClass(/selected|active|highlighted/);
+
+    // Select PIX payment
+    await page.click('[data-testid="payment-method-pix"]');
+
+    // Verify PIX is highlighted and card is not
+    await expect(page.locator('[data-testid="payment-method-pix"]')).toHaveClass(/selected|active|highlighted/);
+    await expect(page.locator('[data-testid="payment-method-card"]')).not.toHaveClass(/selected|active|highlighted/);
+  });
+});

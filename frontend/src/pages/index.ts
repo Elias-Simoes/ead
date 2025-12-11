@@ -9,6 +9,7 @@ export { LessonPlayerPage } from './LessonPlayerPage'
 export { MyCoursesPage } from './MyCoursesPage'
 export { ProfilePage } from './ProfilePage'
 export { CertificatesPage } from './CertificatesPage'
+export { CheckoutPage } from './CheckoutPage'
 
 // Instructor pages
 export {
@@ -28,4 +29,5 @@ export {
   CourseApprovalPage,
   SubscriptionsManagementPage,
   ReportsPage,
+  // PaymentConfigPage,
 } from './admin'

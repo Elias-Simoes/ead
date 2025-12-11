@@ -1,26 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { useAuthStore } from '../stores/authStore'
-import api from '../services/api'
 
 export const SubscriptionSuccessPage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const sessionId = searchParams.get('session_id')
-  const { setUser } = useAuthStore()
-  const [updating, setUpdating] = useState(true)
+  const { checkAuth } = useAuthStore()
 
   useEffect(() => {
     // Atualizar dados do usuário para refletir a nova assinatura
     const updateUserData = async () => {
       try {
-        const response = await api.get('/auth/me')
-        setUser(response.data.data)
-        setUpdating(false)
+        await checkAuth()
       } catch (error) {
         console.error('Erro ao atualizar dados do usuário:', error)
-        setUpdating(false)
       }
     }
 
@@ -32,7 +27,7 @@ export const SubscriptionSuccessPage = () => {
     }, 5000)
 
     return () => clearTimeout(timer)
-  }, [navigate, setUser])
+  }, [navigate, checkAuth])
 
   return (
     <div className="min-h-screen bg-gray-50">

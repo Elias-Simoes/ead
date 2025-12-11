@@ -10,6 +10,13 @@
 - **URL**: http://localhost:3000
 - **Status**: ✅ Rodando
 
+### URLs Importantes para Teste de Renovação
+- **Login**: http://localhost:5173/login
+- **Perfil**: http://localhost:5173/profile
+- **Renovar Assinatura**: http://localhost:5173/subscription/renew
+- **Cursos**: http://localhost:5173/courses
+- **Checkout**: http://localhost:5173/checkout/:planId
+
 ## Credenciais de Acesso
 
 ### Instrutor (Professor)
@@ -44,16 +51,53 @@
   - Fazer avaliações
   - Obter certificados
 
-### Aluno (Estudante) - Assinatura Vencida
-- **Email**: `expired@example.com`
-- **Senha**: `Expired123!`
-- **Status**: ❌ Assinatura vencida (expirou há 30 dias)
-- **Uso**: Testar avisos de assinatura vencida
+### Aluno (Estudante) - Assinatura Expirada/Cancelada 🔴
+- **Email**: `expired.student@test.com`
+- **Senha**: `Test123!@#`
+- **Status**: ❌ Assinatura cancelada (expirou há 30 dias)
+- **Uso**: **TESTAR RENOVAÇÃO DE ASSINATURA**
 - **Comportamento Esperado**:
-  - ⚠️ Vê aviso amarelo no topo das páginas
+  - ⚠️ Vê aviso amarelo no topo das páginas sobre assinatura expirada
+  - ✅ Pode fazer login normalmente
   - ✅ Pode ver catálogo de cursos
-  - ❌ Não pode acessar conteúdo das aulas (erro 403)
+  - ❌ **NÃO pode acessar conteúdo das aulas** (bloqueado)
   - ❌ Não pode fazer avaliações
+  - 🔄 **Pode renovar a assinatura** através do botão "Renovar Assinatura"
+
+### Fluxo de Teste de Renovação:
+1. Fazer login com `expired.student@test.com` / `Test123!@#`
+2. Verificar aviso de assinatura expirada no topo
+3. Tentar acessar um curso - deve ser bloqueado
+4. Clicar em "Renovar Assinatura" ou acessar `/subscription/renew`
+5. Escolher um plano disponível
+6. Clicar em "Renovar com este Plano"
+7. Página de checkout deve carregar com dados do plano
+8. Escolher método de pagamento (Cartão ou PIX)
+9. **Para PIX**: Gerar QR Code e simular pagamento (veja abaixo)
+10. **Para Cartão**: Redireciona para Stripe (modo teste)
+
+### 🎯 Como Simular Pagamento PIX:
+
+Após gerar o QR Code PIX, você precisa simular a confirmação do pagamento:
+
+```bash
+# 1. Gerar QR Code PIX no frontend (passo 8 acima)
+
+# 2. Executar script de simulação no terminal
+node simulate-pix-payment.js
+
+# 3. Recarregar a página no navegador (F5)
+
+# 4. Verificar que o acesso foi liberado!
+```
+
+**O que acontece:**
+- ✅ Pagamento é marcado como confirmado
+- ✅ Assinatura é ativada automaticamente
+- ✅ Acesso aos cursos é liberado
+- ✅ Aviso de assinatura expirada desaparece
+
+**Documentação completa**: Veja `GUIA_SIMULACAO_PIX.md`
 
 ## Como Iniciar o Sistema
 

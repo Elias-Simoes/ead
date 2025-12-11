@@ -24,11 +24,16 @@ import {
   CourseApprovalPage,
   SubscriptionsManagementPage,
   ReportsPage,
+  // PaymentConfigPage,
 } from './pages'
 import AssessmentFormPage from './pages/instructor/AssessmentFormPage'
+import PaymentMetricsDashboardPage from './pages/admin/PaymentMetricsDashboardPage'
+// import PaymentConfigPage from './pages/admin/PaymentConfigPage'
 import { SubscriptionRenewPage } from './pages/SubscriptionRenewPage'
 import { SubscriptionSuccessPage } from './pages/SubscriptionSuccessPage'
 import { SubscriptionCancelPage } from './pages/SubscriptionCancelPage'
+import { CheckoutPage } from './pages/CheckoutPage'
+import { PlansPage } from './pages/PlansPage'
 
 function App() {
   return (
@@ -46,7 +51,9 @@ function App() {
             <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonPlayerPage />} />
             <Route path="/my-courses" element={<MyCoursesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/plans" element={<PlansPage />} />
             <Route path="/subscription/renew" element={<SubscriptionRenewPage />} />
+            <Route path="/checkout/:planId" element={<CheckoutPage />} />
             <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
             <Route path="/subscription/cancel" element={<SubscriptionCancelPage />} />
             <Route path="/certificates" element={<CertificatesPage />} />
@@ -70,6 +77,8 @@ function App() {
             <Route path="/admin/courses/pending" element={<CourseApprovalPage />} />
             <Route path="/admin/subscriptions" element={<SubscriptionsManagementPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
+            {/* <Route path="/admin/payment-config" element={<PaymentConfigPage />} /> */}
+            <Route path="/admin/payment-metrics" element={<PaymentMetricsDashboardPage />} />
           </Routes>
         </div>
       </AuthProvider>

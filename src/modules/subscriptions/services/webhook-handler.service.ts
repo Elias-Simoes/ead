@@ -381,6 +381,315 @@ export class WebhookHandlerService {
       throw error;
     }
   }
+
+  /**
+   * Handle checkout.session.completed event
+   * This handles both subscription mode and payment mode (for installments)
+   */
+  async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      logger.info('Processing checkout.session.completed event', {
+        sessionId: session.id,
+        mode: session.mode,
+      });
+
+      const studentId = session.metadata?.studentId;
+      const planId = session.metadata?.planId;
+      const isSubscriptionPayment = session.metadata?.isSubscriptionPayment === 'true';
+
+      if (!studentId || !planId) {
+        throw new Error('Missing metadata in checkout session');
+      }
+
+      // If this is a payment mode session (for installments), create subscription manually
+      if (session.mode === 'payment' && isSubscriptionPayment) {
+        logger.info('Processing one-time payment for subscription (installments)', {
+          sessionId: session.id,
+          studentId,
+          planId,
+        });
+
+        // Get plan details
+        const planResult = await client.query(
+          'SELECT * FROM plans WHERE id = $1',
+          [planId]
+        );
+
+        if (planResult.rows.length === 0) {
+          throw new Error('Plan not found');
+        }
+
+        const plan = planResult.rows[0];
+
+        // Calculate subscription period
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + plan.duration_days);
+
+        // Check if student already has an active subscription
+        const existingSubResult = await client.query(
+          'SELECT id FROM subscriptions WHERE student_id = $1 AND status = $2',
+          [studentId, 'active']
+        );
+
+        let subscriptionId: string;
+
+        if (existingSubResult.rows.length > 0) {
+          // Extend existing subscription
+          const updateResult = await client.query(
+            `UPDATE subscriptions
+            SET end_date = end_date + INTERVAL '${plan.duration_days} days',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            RETURNING id`,
+            [existingSubResult.rows[0].id]
+          );
+          subscriptionId = updateResult.rows[0].id;
+        } else {
+          // Create new subscription
+          const insertResult = await client.query(
+            `INSERT INTO subscriptions
+            (student_id, plan_id, status, start_date, end_date, payment_method, amount_paid, gateway_subscription_id)
+            VALUES ($1, $2, 'active', $3, $4, 'card', $5, $6)
+            RETURNING id`,
+            [
+              studentId,
+              planId,
+              startDate,
+              endDate,
+              session.amount_total ? session.amount_total / 100 : 0,
+              `checkout_${session.id}`,
+            ]
+          );
+          subscriptionId = insertResult.rows[0].id;
+        }
+
+        // Create payment record
+        const installments = session.metadata?.installments ? parseInt(session.metadata.installments) : 1;
+        await client.query(
+          `INSERT INTO payments
+          (subscription_id, amount, status, payment_method, gateway_payment_id, paid_at)
+          VALUES ($1, $2, 'completed', 'card', $3, CURRENT_TIMESTAMP)`,
+          [
+            subscriptionId,
+            session.amount_total ? session.amount_total / 100 : 0,
+            session.payment_intent as string,
+          ]
+        );
+
+        await client.query('COMMIT');
+
+        logger.info('Subscription created from one-time payment', {
+          sessionId: session.id,
+          subscriptionId,
+          studentId,
+          installments,
+        });
+      } else if (session.mode === 'subscription') {
+        // Regular subscription mode - will be handled by subscription.created event
+        logger.info('Subscription mode checkout completed, will be handled by subscription.created', {
+          sessionId: session.id,
+        });
+        await client.query('COMMIT');
+      } else {
+        logger.warn('Unknown checkout session mode', {
+          sessionId: session.id,
+          mode: session.mode,
+        });
+        await client.query('COMMIT');
+      }
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to handle checkout.session.completed', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Handle payment_intent.succeeded event for PIX payments
+   * Requirements: 5.3, 5.4, 5.5
+   */
+  async handlePixPaymentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      logger.info('Processing payment_intent.succeeded event for PIX', {
+        paymentIntentId: paymentIntent.id,
+      });
+
+      // Check if this is a PIX payment
+      const paymentMethodTypes = paymentIntent.payment_method_types || [];
+      if (!paymentMethodTypes.includes('pix')) {
+        logger.info('Payment intent is not PIX, skipping', {
+          paymentIntentId: paymentIntent.id,
+          paymentMethodTypes,
+        });
+        await client.query('COMMIT');
+        return;
+      }
+
+      // Find the PIX payment in our database
+      const pixPaymentResult = await client.query(
+        'SELECT id, student_id, plan_id, final_amount FROM pix_payments WHERE gateway_charge_id = $1',
+        [paymentIntent.id]
+      );
+
+      if (pixPaymentResult.rows.length === 0) {
+        logger.warn('PIX payment not found in database', {
+          paymentIntentId: paymentIntent.id,
+        });
+        await client.query('COMMIT');
+        return;
+      }
+
+      const pixPayment = pixPaymentResult.rows[0];
+
+      // Check if already processed
+      const statusCheck = await client.query(
+        'SELECT status FROM pix_payments WHERE id = $1',
+        [pixPayment.id]
+      );
+
+      if (statusCheck.rows[0].status === 'paid') {
+        logger.info('PIX payment already processed', {
+          paymentId: pixPayment.id,
+        });
+        await client.query('COMMIT');
+        return;
+      }
+
+      // Update PIX payment status to 'paid'
+      await client.query(
+        `UPDATE pix_payments
+        SET status = 'paid', paid_at = CURRENT_TIMESTAMP, gateway_response = $1
+        WHERE id = $2`,
+        [JSON.stringify(paymentIntent), pixPayment.id]
+      );
+
+      // Get plan details
+      const planResult = await client.query(
+        'SELECT * FROM plans WHERE id = $1',
+        [pixPayment.plan_id]
+      );
+
+      if (planResult.rows.length === 0) {
+        throw new Error('Plan not found');
+      }
+
+      const plan = planResult.rows[0];
+
+      // Calculate subscription period
+      const currentPeriodStart = new Date();
+      const currentPeriodEnd = new Date();
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+      // Create or update subscription
+      const existingSubResult = await client.query(
+        'SELECT id FROM subscriptions WHERE student_id = $1 AND status IN ($2, $3)',
+        [pixPayment.student_id, 'pending', 'expired']
+      );
+
+      let subscriptionId: string;
+
+      if (existingSubResult.rows.length > 0) {
+        // Update existing subscription
+        const updateResult = await client.query(
+          `UPDATE subscriptions
+          SET status = 'active',
+              plan_id = $1,
+              current_period_start = $2,
+              current_period_end = $3,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $4
+          RETURNING id`,
+          [pixPayment.plan_id, currentPeriodStart, currentPeriodEnd, existingSubResult.rows[0].id]
+        );
+        subscriptionId = updateResult.rows[0].id;
+      } else {
+        // Create new subscription
+        const insertResult = await client.query(
+          `INSERT INTO subscriptions
+          (student_id, plan_id, status, current_period_start, current_period_end, gateway_subscription_id)
+          VALUES ($1, $2, 'active', $3, $4, $5)
+          RETURNING id`,
+          [pixPayment.student_id, pixPayment.plan_id, currentPeriodStart, currentPeriodEnd, `pix_${pixPayment.id}`]
+        );
+        subscriptionId = insertResult.rows[0].id;
+      }
+
+      // Create payment record
+      await client.query(
+        `INSERT INTO payments
+        (subscription_id, amount, currency, status, gateway_payment_id, paid_at, payment_method, pix_payment_id)
+        VALUES ($1, $2, $3, 'paid', $4, CURRENT_TIMESTAMP, 'pix', $5)`,
+        [subscriptionId, pixPayment.final_amount, plan.currency, paymentIntent.id, pixPayment.id]
+      );
+
+      // Update student subscription status
+      await client.query(
+        `UPDATE students
+        SET subscription_status = 'active', subscription_expires_at = $1
+        WHERE id = $2`,
+        [currentPeriodEnd, pixPayment.student_id]
+      );
+
+      await client.query('COMMIT');
+
+      // Structured log for PIX payment webhook processing
+      logger.info('PIX payment processed successfully via webhook', {
+        event: 'pix_webhook_processed',
+        paymentId: pixPayment.id,
+        studentId: pixPayment.student_id,
+        subscriptionId,
+        finalAmount: pixPayment.final_amount,
+        paymentIntentId: paymentIntent.id,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Get student details for email
+      const studentResult = await pool.query(
+        'SELECT u.name, u.email FROM users u WHERE u.id = $1',
+        [pixPayment.student_id]
+      );
+
+      if (studentResult.rows.length > 0) {
+        const student = studentResult.rows[0];
+        
+        // Send PIX payment confirmed email (async, don't wait)
+        const { notificationService } = await import('@modules/notifications/services/notification.service');
+        notificationService.sendPixPaymentConfirmedEmail({
+          studentName: student.name,
+          studentEmail: student.email,
+          planName: plan.name,
+          finalAmount: parseFloat(pixPayment.final_amount),
+          expiresAt: currentPeriodEnd,
+        }).catch((error) => {
+          logger.error('Failed to send PIX payment confirmed email', error);
+        });
+      }
+    } catch (error) {
+      await client.query('ROLLBACK');
+      
+      // Structured log for webhook error
+      logger.error('Failed to handle PIX payment_intent.succeeded webhook', error, {
+        event: 'pix_webhook_error',
+        paymentIntentId: paymentIntent.id,
+        timestamp: new Date().toISOString(),
+      });
+      
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export const webhookHandlerService = new WebhookHandlerService();

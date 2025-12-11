@@ -34,7 +34,7 @@ export class AuthController {
       });
 
       res.status(201).json({
-        message: 'User registered successfully',
+        message: 'Usuário cadastrado com sucesso',
         data: tokens,
       });
     } catch (error) {
@@ -43,7 +43,7 @@ export class AuthController {
           res.status(409).json({
             error: {
               code: 'EMAIL_ALREADY_EXISTS',
-              message: 'Email already registered',
+              message: 'E-mail já cadastrado',
               timestamp: new Date().toISOString(),
               path: req.path,
             },
@@ -75,7 +75,7 @@ export class AuthController {
       logger.info('User logged in successfully', { userId: user.id });
 
       res.status(200).json({
-        message: 'Login successful',
+        message: 'Login realizado com sucesso',
         data: {
           tokens,
           user,
@@ -92,8 +92,8 @@ export class AuthController {
               code: error.message,
               message:
                 error.message === 'INVALID_CREDENTIALS'
-                  ? 'Invalid email or password'
-                  : 'User account is inactive',
+                  ? 'E-mail ou senha inválidos'
+                  : 'Conta de usuário inativa',
               timestamp: new Date().toISOString(),
               path: req.path,
             },
@@ -124,7 +124,7 @@ export class AuthController {
       );
 
       res.status(200).json({
-        message: 'Token refreshed successfully',
+        message: 'Token atualizado com sucesso',
         data: tokens,
       });
     } catch (error) {
@@ -139,7 +139,7 @@ export class AuthController {
           res.status(401).json({
             error: {
               code: error.message,
-              message: 'Invalid or expired refresh token',
+              message: 'Token de atualização inválido ou expirado',
               timestamp: new Date().toISOString(),
               path: req.path,
             },
@@ -175,7 +175,7 @@ export class AuthController {
       }
 
       res.status(200).json({
-        message: 'Logout successful',
+        message: 'Logout realizado com sucesso',
       });
     } catch (error) {
       next(error);
@@ -192,7 +192,7 @@ export class AuthController {
         res.status(401).json({
           error: {
             code: 'UNAUTHORIZED',
-            message: 'Not authenticated',
+            message: 'Não autenticado',
             timestamp: new Date().toISOString(),
             path: req.path,
           },
@@ -206,7 +206,7 @@ export class AuthController {
         res.status(404).json({
           error: {
             code: 'USER_NOT_FOUND',
-            message: 'User not found',
+            message: 'Usuário não encontrado',
             timestamp: new Date().toISOString(),
             path: req.path,
           },
@@ -259,7 +259,7 @@ export class AuthController {
       // Always return success to prevent email enumeration
       res.status(200).json({
         message:
-          'If the email exists, a password reset link has been sent',
+          'Se o e-mail existir, um link de redefinição de senha foi enviado',
       });
     } catch (error) {
       next(error);
@@ -290,7 +290,7 @@ export class AuthController {
       // Could enhance to return userId and log here as well
 
       res.status(200).json({
-        message: 'Password reset successful',
+        message: 'Senha redefinida com sucesso',
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -302,7 +302,7 @@ export class AuthController {
           res.status(400).json({
             error: {
               code: error.message,
-              message: 'Invalid or expired reset token',
+              message: 'Token de redefinição inválido ou expirado',
               timestamp: new Date().toISOString(),
               path: req.path,
             },

@@ -43,10 +43,26 @@ export const ProfilePage = () => {
       }
 
       const endpoint = getProfileEndpoint()
-      const response = await api.get<{ data: Student }>(endpoint)
-      setProfile(response.data.data)
+      const response = await api.get<{ data: { profile: any } }>(endpoint)
+      const rawProfile = response.data.data.profile
+      
+      // Transform snake_case to camelCase
+      const profileData: Student = {
+        id: rawProfile.id,
+        email: rawProfile.email,
+        name: rawProfile.name,
+        role: 'student',
+        isActive: rawProfile.is_active,
+        createdAt: rawProfile.created_at,
+        updatedAt: rawProfile.updated_at || rawProfile.created_at,
+        subscriptionStatus: rawProfile.subscription_status,
+        subscriptionExpiresAt: rawProfile.subscription_expires_at,
+        totalStudyTime: rawProfile.total_study_time || 0,
+      }
+      
+      setProfile(profileData)
       setFormData({
-        name: response.data.data.name,
+        name: profileData.name,
         bio: '',
       })
     } catch (err: any) {
@@ -63,8 +79,24 @@ export const ProfilePage = () => {
 
     try {
       const endpoint = getProfileEndpoint()
-      const response = await api.patch<{ data: Student }>(endpoint, formData)
-      setProfile(response.data.data)
+      const response = await api.patch<{ data: { profile: any } }>(endpoint, formData)
+      const rawProfile = response.data.data.profile
+      
+      // Transform snake_case to camelCase
+      const profileData: Student = {
+        id: rawProfile.id,
+        email: rawProfile.email,
+        name: rawProfile.name,
+        role: 'student',
+        isActive: rawProfile.is_active,
+        createdAt: rawProfile.created_at,
+        updatedAt: rawProfile.updated_at || rawProfile.created_at,
+        subscriptionStatus: rawProfile.subscription_status,
+        subscriptionExpiresAt: rawProfile.subscription_expires_at,
+        totalStudyTime: rawProfile.total_study_time || 0,
+      }
+      
+      setProfile(profileData)
       setEditing(false)
       setSuccess('Perfil atualizado com sucesso!')
     } catch (err: any) {
@@ -249,14 +281,20 @@ export const ProfilePage = () => {
                     ? 'bg-green-100 text-green-800'
                     : profile.subscriptionStatus === 'suspended'
                     ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
+                    : profile.subscriptionStatus === 'cancelled'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-gray-100 text-gray-800'
                 }`}
               >
                 {profile.subscriptionStatus === 'active'
                   ? 'Ativa'
                   : profile.subscriptionStatus === 'suspended'
                   ? 'Suspensa'
-                  : 'Cancelada'}
+                  : profile.subscriptionStatus === 'cancelled'
+                  ? 'Cancelada'
+                  : profile.subscriptionExpiresAt
+                  ? 'Expirada'
+                  : 'Sem Assinatura'}
               </span>
             </div>
             {profile.subscriptionExpiresAt && (
@@ -267,7 +305,11 @@ export const ProfilePage = () => {
             )}
             {profile.subscriptionStatus !== 'active' && (
               <button
-                onClick={() => navigate('/subscription/renew')}
+                onClick={() => {
+                  // Verificar se é usuário novo (nunca teve assinatura) ou usuário com assinatura expirada/cancelada
+                  const isNewUser = profile.subscriptionStatus === 'inactive' && !profile.subscriptionExpiresAt
+                  navigate(isNewUser ? '/plans' : '/subscription/renew')
+                }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium flex items-center justify-center"
               >
                 <svg
@@ -280,10 +322,16 @@ export const ProfilePage = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    d={
+                      profile.subscriptionStatus === 'inactive' && !profile.subscriptionExpiresAt
+                        ? "M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        : "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    }
                   />
                 </svg>
-                Renovar Assinatura
+                {profile.subscriptionStatus === 'inactive' && !profile.subscriptionExpiresAt
+                  ? 'Assinar Plano'
+                  : 'Renovar Assinatura'}
               </button>
             )}
           </div>

@@ -19,10 +19,12 @@ export const CoursesPage = () => {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
-  // Verificar se o usuário tem assinatura ativa
-  const hasActiveSubscription = user?.role === 'student' && user?.subscriptionStatus === 'active'
+  // Verificar se o usuário tem assinatura ativa ou expirada
   const isExpiredSubscription = user?.role === 'student' && 
-    (user?.subscriptionStatus === 'expired' || user?.subscriptionStatus === 'inactive' || user?.subscriptionStatus === 'cancelled')
+    (user?.subscriptionStatus === 'inactive' || user?.subscriptionStatus === 'cancelled')
+  
+  // Verificar se é um usuário novo (nunca teve assinatura) ou se já teve assinatura
+  const isNewUser = user?.role === 'student' && user?.subscriptionStatus === 'inactive' && !user?.subscriptionExpiresAt
 
   useEffect(() => {
     console.log('CoursesPage montado')
@@ -98,56 +100,106 @@ export const CoursesPage = () => {
 
         {/* Bloqueio para assinatura expirada */}
         {isExpiredSubscription && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 mb-8">
-            <div className="flex items-start">
-              <svg
-                className="w-12 h-12 text-red-600 mr-4 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-red-900 mb-3">
-                  Acesso aos Cursos Bloqueado
-                </h3>
-                <p className="text-red-800 mb-6 text-lg">
-                  Sua assinatura está {user?.subscriptionStatus === 'expired' ? 'expirada' : 
-                    user?.subscriptionStatus === 'cancelled' ? 'cancelada' : 'inativa'}. 
-                  Para acessar os cursos, você precisa renovar sua assinatura.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    onClick={() => navigate('/subscription/renew')}
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-md font-medium inline-flex items-center justify-center"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+          <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-2xl shadow-xl mb-8">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%234F46E5' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }} />
+            </div>
+            
+            <div className="relative p-8 lg:p-12">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center">
+                {/* Icon Section */}
+                
+
+                {/* Content Section */}
+                <div className="flex-1 min-w-0">
+                  <div className="mb-4">
+                    <h3 className="text-3xl font-bold text-gray-900 mb-2">
+                      {isNewUser ? '🚀 Comece Sua Jornada de Aprendizado!' : '⚠️ Acesso aos Cursos Bloqueado'}
+                    </h3>
+                    <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <p className="text-gray-700 text-lg leading-relaxed mb-4">
+                      {isNewUser 
+                        ? 'Bem-vindo à nossa plataforma! Para acessar nossos cursos exclusivos e começar a transformar sua carreira, você precisa escolher um plano que se adeque às suas necessidades.'
+                        : user?.subscriptionStatus === 'cancelled' 
+                          ? 'Sua assinatura foi cancelada. Para voltar a acessar nossos cursos e continuar seu desenvolvimento, renove sua assinatura agora.'
+                          : 'Sua assinatura expirou. Para continuar acessando nossos cursos e manter seu progresso, renove sua assinatura.'
+                      }
+                    </p>
+                    
+                    {isNewUser && (
+                      <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-blue-200">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <h4 className="font-semibold text-gray-900">O que você terá acesso:</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                            <span>Cursos completos e atualizados</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                            <span>Avaliações e certificados</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                            <span>Suporte especializado</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                            <span>Acesso vitalício ao conteúdo</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <button
+                      onClick={() => navigate(isNewUser ? '/plans' : '/subscription/renew')}
+                      className="group relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 inline-flex items-center justify-center"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    Renovar Assinatura
-                  </button>
-                  <button
-                    onClick={() => navigate('/profile')}
-                    className="bg-white hover:bg-gray-50 text-red-700 border-2 border-red-300 px-8 py-3 rounded-md font-medium"
-                  >
-                    Ver Perfil
-                  </button>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                      <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={isNewUser 
+                            ? "M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                            : "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          }
+                        />
+                      </svg>
+                      <span className="relative">
+                        {isNewUser ? '✨ Escolher Meu Plano' : '🔄 Renovar Assinatura'}
+                      </span>
+                      <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </button>
+                    
+                    <button
+                      onClick={() => navigate('/profile')}
+                      className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300 px-8 py-4 rounded-xl font-medium text-lg shadow-sm hover:shadow-md transition-all duration-200 inline-flex items-center justify-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Ver Meu Perfil
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

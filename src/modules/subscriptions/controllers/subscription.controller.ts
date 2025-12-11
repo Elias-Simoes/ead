@@ -204,6 +204,48 @@ export class SubscriptionController {
   }
 
   /**
+   * GET /api/subscriptions/plans/:planId
+   * Get specific plan by ID
+   */
+  async getPlanById(req: Request, res: Response): Promise<void> {
+    try {
+      const { planId } = req.params;
+      
+      if (!planId) {
+        res.status(400).json({
+          error: {
+            code: 'MISSING_PLAN_ID',
+            message: 'Plan ID is required',
+          },
+        });
+        return;
+      }
+
+      const plan = await subscriptionService.getPlanById(planId);
+      
+      if (!plan) {
+        res.status(404).json({
+          error: {
+            code: 'PLAN_NOT_FOUND',
+            message: 'Plan not found',
+          },
+        });
+        return;
+      }
+
+      res.json({ data: plan });
+    } catch (error) {
+      logger.error('Error getting plan by ID', error);
+      res.status(500).json({
+        error: {
+          code: 'PLAN_RETRIEVAL_FAILED',
+          message: 'Failed to retrieve plan',
+        },
+      });
+    }
+  }
+
+  /**
    * POST /api/subscriptions/renew
    * Renew an expired or cancelled subscription
    */

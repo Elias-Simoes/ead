@@ -11,6 +11,9 @@ router.use(authenticate);
 // Get all active plans (public for authenticated users)
 router.get('/plans', subscriptionController.getActivePlans.bind(subscriptionController));
 
+// Get specific plan by ID
+router.get('/plans/:planId', subscriptionController.getPlanById.bind(subscriptionController));
+
 // Student-only routes
 router.post(
   '/',

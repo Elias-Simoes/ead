@@ -18,7 +18,7 @@ interface LessonResourcesManagerProps {
   onChange: (resources: LessonResource[]) => void
 }
 
-export const LessonResourcesManager = ({ lessonId, resources, onChange }: LessonResourcesManagerProps) => {
+export const LessonResourcesManager = ({ resources, onChange }: LessonResourcesManagerProps) => {
   const [uploading, setUploading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newResource, setNewResource] = useState<LessonResource>({

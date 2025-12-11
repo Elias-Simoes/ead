@@ -250,7 +250,7 @@ export const CourseDetailPage = () => {
                     const isCompleted = progress?.completedLessons.includes(lesson.id)
                     const lessonUrl = `/courses/${id}/lessons/${lesson.id}`
                     
-                    const handleLessonClick = (e: React.MouseEvent) => {
+                    const handleLessonClick = () => {
                       console.log('Clicou na aula:', lesson.title)
                       console.log('URL da aula:', lessonUrl)
                       console.log('ID do curso:', id)

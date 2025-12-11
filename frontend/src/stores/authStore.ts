@@ -59,10 +59,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         password,
         gdprConsent,
       })
-      const { tokens } = response.data.data
+      const { accessToken, refreshToken } = response.data.data
 
-      localStorage.setItem('accessToken', tokens.accessToken)
-      localStorage.setItem('refreshToken', tokens.refreshToken)
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
 
       // Buscar dados completos do usuário incluindo informações de assinatura
       const meResponse = await api.get('/auth/me')

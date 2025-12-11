@@ -19,7 +19,6 @@ export const SubscriptionRenewPage = () => {
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPlans()
@@ -40,20 +39,20 @@ export const SubscriptionRenewPage = () => {
     }
   }
 
-  const handleRenewSubscription = async (planId: string) => {
-    try {
-      setProcessingPlanId(planId)
-      setError('')
-
-      const response = await api.post('/subscriptions/renew', { planId })
-      
-      // Redirecionar para o checkout do Stripe
-      if (response.data.checkoutUrl) {
-        window.location.href = response.data.checkoutUrl
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Erro ao processar renovação')
-      setProcessingPlanId(null)
+  const handleRenewSubscription = (planId: string) => {
+    // Find the selected plan to pass its data via route state
+    const selectedPlan = plans.find(p => p.id === planId)
+    
+    if (selectedPlan) {
+      // Navigate to the new CheckoutPage with plan data
+      navigate(`/checkout/${planId}`, {
+        state: {
+          plan: selectedPlan,
+          fromRenewal: true
+        }
+      })
+    } else {
+      setError('Plano não encontrado')
     }
   }
 
@@ -180,51 +179,22 @@ export const SubscriptionRenewPage = () => {
                   )}
                   <button
                     onClick={() => handleRenewSubscription(plan.id)}
-                    disabled={processingPlanId === plan.id}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium flex items-center justify-center"
                   >
-                    {processingPlanId === plan.id ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Processando...
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                          />
-                        </svg>
-                        Renovar com este Plano
-                      </>
-                    )}
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
+                    </svg>
+                    Renovar com este Plano
                   </button>
                 </div>
               </div>
@@ -265,7 +235,7 @@ export const SubscriptionRenewPage = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>Você será redirecionado para o checkout seguro do Stripe</span>
+                <span>Escolha entre pagamento parcelado no cartão ou PIX com desconto</span>
               </li>
               <li className="flex items-start">
                 <svg
@@ -279,7 +249,7 @@ export const SubscriptionRenewPage = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>Complete o pagamento com cartão de crédito</span>
+                <span>Complete o pagamento de forma segura</span>
               </li>
               <li className="flex items-start">
                 <svg

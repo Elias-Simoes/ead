@@ -3,3 +3,4 @@ export { default as InstructorsManagementPage } from './InstructorsManagementPag
 export { default as CourseApprovalPage } from './CourseApprovalPage'
 export { default as SubscriptionsManagementPage } from './SubscriptionsManagementPage'
 export { default as ReportsPage } from './ReportsPage'
+// export { default as PaymentConfigPage } from './PaymentConfigPage'

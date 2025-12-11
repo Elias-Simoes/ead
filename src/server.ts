@@ -17,6 +17,10 @@ import courseRoutes from './modules/courses/routes/course.routes';
 import subscriptionRoutes from './modules/subscriptions/routes/subscription.routes';
 import adminSubscriptionRoutes from './modules/subscriptions/routes/admin-subscription.routes';
 import webhookRoutes from './modules/subscriptions/routes/webhook.routes';
+import paymentRoutes from './modules/subscriptions/routes/payment.routes';
+import paymentConfigRoutes from './modules/subscriptions/routes/payment-config.routes';
+import adminPaymentConfigRoutes from './modules/subscriptions/routes/admin-payment-config.routes';
+import adminPaymentMetricsRoutes from './modules/subscriptions/routes/admin-payment-metrics.routes';
 import progressRoutes from './modules/progress/routes/progress.routes';
 import assessmentRoutes from './modules/assessments/routes/assessment.routes';
 import certificateRoutes from './modules/certificates/routes/certificate.routes';
@@ -32,6 +36,7 @@ import { getCsrfToken } from './shared/middleware/csrf.middleware';
 import { authenticate } from './shared/middleware/auth.middleware';
 import { globalRateLimit } from './shared/middleware/rateLimit.middleware';
 import { startExpiredSubscriptionsJob } from './modules/subscriptions/jobs/check-expired-subscriptions.job';
+import { startExpirePixPaymentsJob } from './modules/subscriptions/jobs/expire-pix-payments.job';
 import { startCertificateIssuanceJob } from './modules/certificates/jobs/issue-certificates.job';
 import { startGdprDeletionJob } from './modules/gdpr/jobs/process-gdpr-deletions.job';
 import { monitoringJob } from './modules/monitoring/jobs/monitoring.job';
@@ -98,6 +103,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin/instructors', instructorRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+app.use('/api/admin/payments', adminPaymentConfigRoutes);
+app.use('/api/admin/payments', adminPaymentMetricsRoutes);
 app.use('/api/admin/reports', reportRoutes);
 // app.use('/api/admin/backup', backupRoutes); // Temporarily disabled
 // app.use('/api/admin/monitoring', monitoringRoutes); // Temporarily disabled
@@ -105,6 +112,8 @@ app.use('/api/instructor', instructorTrackingRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/payments/config', paymentConfigRoutes);
 app.use('/api', progressRoutes);
 app.use('/api', assessmentRoutes);
 app.use('/api', certificateRoutes);
@@ -139,6 +148,7 @@ const startServer = async () => {
 
     // Start cron jobs
     startExpiredSubscriptionsJob();
+    startExpirePixPaymentsJob();
     startCertificateIssuanceJob();
     startGdprDeletionJob();
     backupJob.start();

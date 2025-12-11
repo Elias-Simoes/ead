@@ -66,6 +66,18 @@ export class WebhookController {
           );
           break;
 
+        case 'payment_intent.succeeded':
+          await webhookHandlerService.handlePixPaymentSucceeded(
+            event.data.object as Stripe.PaymentIntent
+          );
+          break;
+
+        case 'checkout.session.completed':
+          await webhookHandlerService.handleCheckoutSessionCompleted(
+            event.data.object as Stripe.Checkout.Session
+          );
+          break;
+
         default:
           logger.info('Unhandled webhook event type', { type: event.type });
       }

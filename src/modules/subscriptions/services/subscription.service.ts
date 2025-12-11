@@ -313,6 +313,33 @@ export class SubscriptionService {
   }
 
   /**
+   * Get specific plan by ID
+   */
+  async getPlanById(planId: string): Promise<Plan | null> {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM plans WHERE id = $1',
+        [planId]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
+    } catch (error: any) {
+      // If it's an invalid UUID format, return null instead of throwing
+      if (error.code === '22P02') {
+        logger.warn(`Invalid UUID format for plan ID: ${planId}`);
+        return null;
+      }
+      
+      logger.error('Failed to get plan by ID', error);
+      throw error;
+    }
+  }
+
+  /**
    * Renew an expired or cancelled subscription
    */
   async renewSubscription(data: CreateSubscriptionData): Promise<{

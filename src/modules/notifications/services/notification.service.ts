@@ -12,6 +12,9 @@ import {
   getSubscriptionSuspendedTemplate,
   getCertificateIssuedTemplate,
   getPasswordResetTemplate,
+  getPixPaymentPendingTemplate,
+  getPixPaymentConfirmedTemplate,
+  getPixPaymentExpiredTemplate,
 } from '../templates/email-templates';
 
 export interface WelcomeEmailData {
@@ -88,6 +91,33 @@ export interface PasswordResetEmailData {
   name: string;
   email: string;
   resetToken: string;
+}
+
+export interface PixPaymentPendingEmailData {
+  studentName: string;
+  studentEmail: string;
+  planName: string;
+  amount: number;
+  discount: number;
+  finalAmount: number;
+  copyPasteCode: string;
+  expiresAt: Date;
+  paymentId: string;
+}
+
+export interface PixPaymentConfirmedEmailData {
+  studentName: string;
+  studentEmail: string;
+  planName: string;
+  finalAmount: number;
+  expiresAt: Date;
+}
+
+export interface PixPaymentExpiredEmailData {
+  studentName: string;
+  studentEmail: string;
+  planName: string;
+  planId: string;
 }
 
 /**
@@ -305,6 +335,79 @@ export class NotificationService {
     await emailService.sendEmail({
       to: data.email,
       subject: 'Redefinição de Senha - Plataforma EAD',
+      html,
+    });
+  }
+
+  /**
+   * Send PIX payment pending email
+   * Requirements: 6.4
+   */
+  async sendPixPaymentPendingEmail(data: PixPaymentPendingEmailData): Promise<void> {
+    const statusUrl = `${config.app.frontendUrl}/payment/pix/${data.paymentId}/status`;
+    
+    const html = getPixPaymentPendingTemplate({
+      studentName: data.studentName,
+      planName: data.planName,
+      amount: data.amount,
+      discount: data.discount,
+      finalAmount: data.finalAmount,
+      copyPasteCode: data.copyPasteCode,
+      expiresAt: data.expiresAt.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      statusUrl,
+    });
+
+    await emailService.sendEmail({
+      to: data.studentEmail,
+      subject: 'Pagamento PIX Gerado - Plataforma EAD',
+      html,
+    });
+  }
+
+  /**
+   * Send PIX payment confirmed email
+   * Requirements: 6.2
+   */
+  async sendPixPaymentConfirmedEmail(data: PixPaymentConfirmedEmailData): Promise<void> {
+    const dashboardUrl = `${config.app.frontendUrl}/dashboard`;
+    
+    const html = getPixPaymentConfirmedTemplate({
+      studentName: data.studentName,
+      planName: data.planName,
+      finalAmount: data.finalAmount,
+      expiresAt: data.expiresAt.toLocaleDateString('pt-BR'),
+      dashboardUrl,
+    });
+
+    await emailService.sendEmail({
+      to: data.studentEmail,
+      subject: 'Pagamento PIX Confirmado! 🎉 - Plataforma EAD',
+      html,
+    });
+  }
+
+  /**
+   * Send PIX payment expired email
+   * Requirements: 6.3
+   */
+  async sendPixPaymentExpiredEmail(data: PixPaymentExpiredEmailData): Promise<void> {
+    const newPaymentUrl = `${config.app.frontendUrl}/checkout/${data.planId}`;
+    
+    const html = getPixPaymentExpiredTemplate({
+      studentName: data.studentName,
+      planName: data.planName,
+      newPaymentUrl,
+    });
+
+    await emailService.sendEmail({
+      to: data.studentEmail,
+      subject: 'Pagamento PIX Expirado - Plataforma EAD',
       html,
     });
   }

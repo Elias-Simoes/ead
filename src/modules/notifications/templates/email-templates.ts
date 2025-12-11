@@ -626,3 +626,166 @@ export const getPasswordResetTemplate = (data: {
   
   return getBaseTemplate(content);
 };
+
+/**
+ * PIX payment pending email template
+ */
+export const getPixPaymentPendingTemplate = (data: {
+  studentName: string;
+  planName: string;
+  amount: number;
+  discount: number;
+  finalAmount: number;
+  copyPasteCode: string;
+  expiresAt: string;
+  statusUrl: string;
+}): string => {
+  const content = `
+    <div class="header">
+      <h1>Pagamento PIX Gerado 💳</h1>
+    </div>
+    <div class="content">
+      <p>Olá <strong>${data.studentName}</strong>,</p>
+      
+      <p>Seu pagamento PIX foi gerado com sucesso! Complete o pagamento para ativar sua assinatura.</p>
+      
+      <div class="success-box">
+        <strong>Detalhes do Pagamento:</strong>
+        <p style="margin: 10px 0 0 0;">
+          <strong>Plano:</strong> ${data.planName}<br>
+          <strong>Valor Original:</strong> R$ ${data.amount.toFixed(2)}<br>
+          <strong>Desconto PIX:</strong> -R$ ${data.discount.toFixed(2)}<br>
+          <strong style="font-size: 18px; color: #10b981;">Valor a Pagar:</strong> <span style="font-size: 18px; color: #10b981;">R$ ${data.finalAmount.toFixed(2)}</span>
+        </p>
+      </div>
+      
+      <div class="warning-box">
+        <strong>⏰ Atenção:</strong>
+        <p style="margin: 10px 0 0 0;">Este pagamento expira em: <strong>${data.expiresAt}</strong></p>
+      </div>
+      
+      <p><strong>Código PIX Copia e Cola:</strong></p>
+      
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; word-break: break-all; font-family: monospace; font-size: 12px;">
+        ${data.copyPasteCode}
+      </div>
+      
+      <p><strong>Como pagar:</strong></p>
+      <ul>
+        <li>Abra o app do seu banco</li>
+        <li>Escolha a opção PIX</li>
+        <li>Selecione "Pix Copia e Cola"</li>
+        <li>Cole o código acima</li>
+        <li>Confirme o pagamento</li>
+      </ul>
+      
+      <center>
+        <a href="${data.statusUrl}" class="button">Verificar Status do Pagamento</a>
+      </center>
+      
+      <p>Após a confirmação do pagamento, sua assinatura será ativada automaticamente e você receberá um e-mail de confirmação.</p>
+      
+      <p><strong>Equipe Plataforma EAD</strong></p>
+    </div>
+  `;
+  
+  return getBaseTemplate(content);
+};
+
+/**
+ * PIX payment confirmed email template
+ */
+export const getPixPaymentConfirmedTemplate = (data: {
+  studentName: string;
+  planName: string;
+  finalAmount: number;
+  expiresAt: string;
+  dashboardUrl: string;
+}): string => {
+  const content = `
+    <div class="header">
+      <h1>Pagamento PIX Confirmado! 🎉</h1>
+    </div>
+    <div class="content">
+      <p>Olá <strong>${data.studentName}</strong>,</p>
+      
+      <p>Ótimas notícias! Seu pagamento PIX foi confirmado e sua assinatura está ativa!</p>
+      
+      <div class="success-box">
+        <strong>✅ Assinatura Ativada:</strong>
+        <p style="margin: 10px 0 0 0;">
+          <strong>Plano:</strong> ${data.planName}<br>
+          <strong>Valor Pago:</strong> R$ ${data.finalAmount.toFixed(2)}<br>
+          <strong>Válido até:</strong> ${data.expiresAt}
+        </p>
+      </div>
+      
+      <p>Agora você tem acesso ilimitado a todos os cursos da plataforma!</p>
+      
+      <center>
+        <a href="${data.dashboardUrl}" class="button">Explorar Cursos</a>
+      </center>
+      
+      <p><strong>Aproveite sua assinatura:</strong></p>
+      <ul>
+        <li>Acesso ilimitado a todos os cursos</li>
+        <li>Novos cursos adicionados regularmente</li>
+        <li>Certificados ao concluir os cursos</li>
+        <li>Estude no seu próprio ritmo</li>
+      </ul>
+      
+      <p>Obrigado por escolher a Plataforma EAD!</p>
+      
+      <p>Bons estudos!</p>
+      
+      <p><strong>Equipe Plataforma EAD</strong></p>
+    </div>
+  `;
+  
+  return getBaseTemplate(content);
+};
+
+/**
+ * PIX payment expired email template
+ */
+export const getPixPaymentExpiredTemplate = (data: {
+  studentName: string;
+  planName: string;
+  newPaymentUrl: string;
+}): string => {
+  const content = `
+    <div class="header">
+      <h1>Pagamento PIX Expirado ⏰</h1>
+    </div>
+    <div class="content">
+      <p>Olá <strong>${data.studentName}</strong>,</p>
+      
+      <p>Seu pagamento PIX expirou sem ser confirmado.</p>
+      
+      <div class="warning-box">
+        <strong>⚠️ Pagamento Expirado</strong>
+        <p style="margin: 10px 0 0 0;">O código PIX gerado para o plano <strong>${data.planName}</strong> expirou e não pode mais ser utilizado.</p>
+      </div>
+      
+      <p>Não se preocupe! Você pode gerar um novo pagamento PIX a qualquer momento.</p>
+      
+      <center>
+        <a href="${data.newPaymentUrl}" class="button">Gerar Novo Pagamento PIX</a>
+      </center>
+      
+      <p><strong>Lembre-se:</strong></p>
+      <ul>
+        <li>Pagamentos PIX têm validade de 30 minutos</li>
+        <li>Você pode gerar quantos pagamentos precisar</li>
+        <li>O desconto PIX continua disponível</li>
+        <li>Sua assinatura será ativada assim que o pagamento for confirmado</li>
+      </ul>
+      
+      <p>Estamos aqui para ajudar se você tiver alguma dúvida!</p>
+      
+      <p><strong>Equipe Plataforma EAD</strong></p>
+    </div>
+  `;
+  
+  return getBaseTemplate(content);
+};

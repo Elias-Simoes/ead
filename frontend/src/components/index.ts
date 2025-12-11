@@ -1,2 +1,6 @@
 export { Navbar } from './Navbar'
 export { CourseCard } from './CourseCard'
+export { PaymentMethodSelector } from './PaymentMethodSelector'
+export { PaymentComparison } from './PaymentComparison'
+export { CardPaymentForm } from './CardPaymentForm'
+export { PixPaymentForm } from './PixPaymentForm'
